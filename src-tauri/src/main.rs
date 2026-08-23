@@ -26,18 +26,30 @@ fn get_config_path() -> Option<PathBuf> {
 }
 
 fn resolve_path(p: &str) -> String {
-    let normalized = if p.starts_with("~/") || p == "~" {
+    let expanded = if p.starts_with("~/") || p == "~" {
         if let Some(home) = dirs::home_dir() {
             let relative = p.trim_start_matches("~/").trim_start_matches('~');
-            home.join(relative).to_string_lossy().to_string()
+            home.join(relative)
         } else {
-            p.to_string()
+            PathBuf::from(p)
         }
     } else {
-        p.to_string()
+        PathBuf::from(p)
     };
-    PathBuf::from(normalized).to_string_lossy().to_string()
+
+    let abs_path = if expanded.is_relative() {
+        if let Ok(cwd) = std::env::current_dir() {
+            cwd.join(expanded)
+        } else {
+            expanded
+        }
+    } else {
+        expanded
+    };
+
+    abs_path.to_string_lossy().to_string()
 }
+
 
 fn load_watch_dirs() -> Vec<String> {
     let mut default_dirs = Vec::new();

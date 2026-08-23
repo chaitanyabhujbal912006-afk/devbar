@@ -48,14 +48,7 @@ pub fn scan_git_repos(root_dirs: &[String]) -> Vec<RepoStatus> {
                     return false;
                 }
 
-                println!("[devbar] walking: {}", path.display());
-
-                // Skip root path itself for git checks, but keep walking inside it
-                if path == root_path {
-                    return true;
-                }
-
-                // Check directory name for ignored pattern
+                // Check directory name for ignored pattern (hidden dirs or build output)
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                     if (name.starts_with('.') && name != ".")
                         || name == "node_modules"
@@ -67,6 +60,8 @@ pub fn scan_git_repos(root_dirs: &[String]) -> Vec<RepoStatus> {
                         return false;
                     }
                 }
+
+                println!("[devbar] walking: {}", path.display());
 
                 // Check if this directory is a git repository
                 if path.join(".git").exists() {
@@ -86,6 +81,7 @@ pub fn scan_git_repos(root_dirs: &[String]) -> Vec<RepoStatus> {
 
     repos
 }
+
 
 fn inspect_repo(path: &Path) -> Option<RepoStatus> {
     let name = path.file_name()?.to_string_lossy().to_string();
