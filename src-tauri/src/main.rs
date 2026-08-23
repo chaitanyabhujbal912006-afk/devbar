@@ -8,7 +8,8 @@ use monitors::docker::get_docker_status;
 use monitors::git::scan_git_repos;
 use std::collections::HashSet;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
 use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
@@ -54,11 +55,11 @@ fn resolve_path(p: &str) -> String {
 fn load_watch_dirs() -> Vec<String> {
     let mut default_dirs = Vec::new();
 
-    // Add parent directory of current working directory if available (e.g. C:\projects)
+    // Always include parent directory of current working directory if it exists (e.g. C:\projects)
     if let Ok(cwd) = std::env::current_dir() {
         if let Some(parent) = cwd.parent() {
             let parent_str = parent.to_string_lossy().to_string();
-            if !parent_str.is_empty() {
+            if !parent_str.is_empty() && Path::new(&parent_str).exists() {
                 default_dirs.push(parent_str);
             }
         }
@@ -66,9 +67,12 @@ fn load_watch_dirs() -> Vec<String> {
 
     // Add home directory defaults (~/dev, ~/projects, ~/code) using dirs::home_dir()
     if let Some(home) = dirs::home_dir() {
-        default_dirs.push(home.join("dev").to_string_lossy().to_string());
-        default_dirs.push(home.join("projects").to_string_lossy().to_string());
-        default_dirs.push(home.join("code").to_string_lossy().to_string());
+        for sub in &["dev", "projects", "code"] {
+            let p = home.join(sub).to_string_lossy().to_string();
+            if Path::new(&p).exists() {
+                default_dirs.push(p);
+            }
+        }
     }
 
     let mut loaded_dirs = Vec::new();
@@ -76,22 +80,28 @@ fn load_watch_dirs() -> Vec<String> {
         if path.exists() {
             if let Ok(content) = fs::read_to_string(&path) {
                 if let Ok(dirs) = serde_json::from_str::<Vec<String>>(&content) {
-                    loaded_dirs = dirs.into_iter().map(|d| resolve_path(&d)).collect();
+                    for d in dirs {
+                        let resolved = resolve_path(&d);
+                        if Path::new(&resolved).exists() {
+                            loaded_dirs.push(resolved);
+                        }
+                    }
                 }
             }
         }
     }
 
-    let mut final_dirs = if loaded_dirs.is_empty() {
-        default_dirs
-    } else {
-        for def in default_dirs {
-            if !loaded_dirs.contains(&def) {
-                loaded_dirs.push(def);
-            }
+    let mut final_dirs = Vec::new();
+    for def in default_dirs {
+        if !final_dirs.contains(&def) {
+            final_dirs.push(def);
         }
-        loaded_dirs
-    };
+    }
+    for loaded in loaded_dirs {
+        if !final_dirs.contains(&loaded) {
+            final_dirs.push(loaded);
+        }
+    }
 
     let mut seen = HashSet::new();
     final_dirs.retain(|d| seen.insert(d.clone()));
@@ -99,6 +109,7 @@ fn load_watch_dirs() -> Vec<String> {
     save_watch_dirs(&final_dirs);
     final_dirs
 }
+
 
 fn save_watch_dirs(dirs: &[String]) {
     if let Some(path) = get_config_path() {
