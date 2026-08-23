@@ -67,17 +67,29 @@ impl AppState {
 
 #[tauri::command]
 fn get_status(state: tauri::State<AppState>) -> serde_json::Value {
+    println!("[devbar] get_status called");
     let dirs = state.get_watch_dirs();
-    let disks = get_disk_status();
-    let repos = scan_git_repos(&dirs);
-    let docker = get_docker_status();
 
+    println!("[devbar] get_status: checking disks...");
+    let disks = get_disk_status();
+    println!("[devbar] get_status: disk check done ({})", disks.len());
+
+    println!("[devbar] get_status: scanning git repos...");
+    let repos = scan_git_repos(&dirs);
+    println!("[devbar] get_status: git scan done ({})", repos.len());
+
+    println!("[devbar] get_status: checking docker status...");
+    let docker = get_docker_status();
+    println!("[devbar] get_status: docker check done (available: {})", docker.available);
+
+    println!("[devbar] get_status: returning JSON status");
     serde_json::json!({
         "disks": disks,
         "repos": repos,
         "docker": docker,
     })
 }
+
 
 #[tauri::command]
 fn get_watch_dirs(state: tauri::State<AppState>) -> Vec<String> {
