@@ -12,6 +12,8 @@
     "autostart:allow-enable",
     "autostart:allow-disable",
     "notification:default",
-    "shell:default"
+    "shell:default",
+    "single-instance:default"
   ]
 }
+
