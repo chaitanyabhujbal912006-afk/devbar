@@ -121,11 +121,43 @@ watch_dirs: Mutex::new(vec![
 
 ## Building for production
 
+Run the production build command:
+
 ```bash
 npm run build
 ```
 
-This produces a standalone installer in `src-tauri/target/release/bundle/`.
+This compiles optimized binaries and bundles installers in `src-tauri/target/release/bundle/` (or `~/.cargo/devbar-target/release/bundle/`).
+
+### Platform-specific Build Artifacts & Prerequisites
+
+#### 🪟 Windows (`.msi`, `.exe` NSIS installer)
+- **Output artifacts:**
+  - `bundle/msi/DevBar_0.1.0_x64_en-US.msi`
+  - `bundle/nsis/DevBar_0.1.0_x64-setup.exe`
+- **Prerequisites:**
+  - [Visual Studio C++ Build Tools](https://aka.ms/vs/17/release/vs_BuildTools.exe) (Desktop development with C++)
+  - WebView2 (built-in on Windows 10/11)
+  - *Note:* WiX 3.14 and NSIS 3.11 are automatically fetched by Tauri bundler during `npm run build`.
+
+#### 🍎 macOS (`.dmg`, `.app`)
+- **Output artifacts:**
+  - `bundle/dmg/DevBar_0.1.0_x64.dmg` (or `aarch64.dmg` for Apple Silicon)
+  - `bundle/macos/DevBar.app`
+- **Prerequisites:**
+  - Xcode Command Line Tools: `xcode-select --install`
+  - macOS 10.15 or later
+
+#### 🐧 Linux (`.AppImage`, `.deb`)
+- **Output artifacts:**
+  - `bundle/appimage/devbar_0.1.0_amd64.AppImage`
+  - `bundle/deb/devbar_0.1.0_amd64.deb`
+- **Prerequisites:**
+  ```bash
+  sudo apt update
+  sudo apt install -y build-essential curl wget libssl-dev libgtk-3-dev \
+    libayatana-appindicator3-dev librsvg2-dev libwebkit2gtk-4.1-dev
+  ```
 
 ---
 
