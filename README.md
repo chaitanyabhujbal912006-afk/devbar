@@ -1,22 +1,34 @@
 # DevBar 🖥️
 
-> A lightweight system tray app that keeps your dev environment health visible at a glance — no browser, no login, no fuss.
+> A lightweight system tray app that keeps your developer environment healthy — without opening a browser, logging in, or running complicated commands.
 
-Built with **Rust + Tauri v2** (native performance, tiny footprint).
+Built with **Rust + Tauri v2** — native speed, tiny memory footprint, runs on Windows, macOS, and Linux.
 
 ---
 
-## What it does
+## What problem does it solve?
 
-DevBar sits quietly in your system tray and checks three things every 60 seconds:
+As a developer you constantly juggle multiple things:
 
-| Monitor | What it tracks |
+- Is my disk about to fill up?
+- Did I forget to commit changes in one of my projects?
+- Are my Docker containers actually running?
+
+Normally you'd open a terminal and run `df -h`, `git status`, and `docker ps` in each folder one by one. DevBar does all of that automatically and puts the results one click away in your taskbar.
+
+---
+
+## What it shows you
+
+Click the tray icon and a compact dark popup appears with three live sections:
+
+| Section | What it tracks |
 |---------|---------------|
-| 💾 **Disk Space** | Free/used space on every mounted drive with green/yellow/red thresholds |
-| 🌿 **Git Repos** | Dirty files and unpushed commits across your project folders |
-| 🐳 **Docker Containers** | Running, exited, and restarting containers (gracefully skipped if Docker isn't installed) |
+| 💾 **Disk Space** | Used/free space on every drive. 🟢 fine · 🟡 getting full (>75%) · 🔴 urgent (>90%) |
+| 🌿 **Git Repos** | Scans your project folders — shows uncommitted files and unpushed commits |
+| 🐳 **Containers** | Lists every Docker container and whether it's running, stopped, or restarting. Shows a friendly "unavailable" note if Docker isn't installed — no crash |
 
-Click the tray icon → a compact dark popup appears with live status. Click again to hide it.
+Click the icon again to hide the popup. Data refreshes every **60 seconds** automatically.
 
 ---
 
@@ -28,19 +40,21 @@ Click the tray icon → a compact dark popup appears with live status. Click aga
 
 ## Prerequisites
 
-Before you can run DevBar, make sure you have:
+You need two tools installed before you can build or run DevBar:
 
-- **Node.js** 18 or later — [nodejs.org](https://nodejs.org)
-- **Rust** (via rustup) — [rustup.rs](https://rustup.rs)
-- **Platform build tools:**
+**Node.js 18+** — download from [nodejs.org](https://nodejs.org)
 
-| OS | Required |
-|----|----------|
-| Windows | [Visual Studio C++ Build Tools](https://aka.ms/vs/17/release/vs_BuildTools.exe) + WebView2 (pre-installed on Win 10/11) |
-| macOS | Xcode Command Line Tools (`xcode-select --install`) |
-| Linux | `libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev` |
+**Rust** — install via one command from [rustup.rs](https://rustup.rs), then restart your terminal
 
-> **Windows tip:** After installing Rust, add `C:\Users\<you>\.cargo\bin` to your PATH and add the Rust `target\` folder to Windows Defender exclusions to avoid file-locking during builds.
+**Platform build tools** (one-time setup):
+
+| OS | What to install |
+|----|-----------------|
+| Windows | [Visual Studio C++ Build Tools](https://aka.ms/vs/17/release/vs_BuildTools.exe) — tick "Desktop development with C++". WebView2 is pre-installed on Win 10/11. |
+| macOS | Run `xcode-select --install` in a terminal |
+| Linux | `sudo apt install build-essential libwebkit2gtk-4.1-dev libssl-dev libayatana-appindicator3-dev` |
+
+> **Windows tip:** After installing Rust, add `C:\Users\<you>\.cargo\bin` to your PATH environment variable. Also add the project's `target\` folder to Windows Defender exclusions — this stops Defender from locking `.exe` files mid-build.
 
 ---
 
@@ -81,14 +95,16 @@ devbar/
 
 ---
 
-## How it works
+## How it works (in plain English)
 
-1. **Rust backend** runs the monitors and exposes a single `get_status` command
-2. **Frontend JS** calls `invoke("get_status")` via Tauri's IPC bridge every 60 seconds
-3. Results are rendered as coloured dots in the popup:
+1. **Rust backend** — the "engine". Runs your disk, git, and Docker checks and returns the results.
+2. **Tauri bridge** — connects the Rust engine to the UI using a secure, typed interface (no HTTP server, no open ports).
+3. **Frontend (HTML/JS/CSS)** — the popup window you see. It asks the engine for fresh data every 60 seconds and displays it with coloured status dots:
    - 🟢 **OK** — everything is fine
-   - 🟡 **Warn** — worth keeping an eye on (disk > 75%, dirty repo, restarting container)
-   - 🔴 **Critical** — needs attention (disk > 90%, exited container)
+   - 🟡 **Warn** — worth keeping an eye on (disk >75%, dirty repo, restarting container)
+   - 🔴 **Critical** — needs attention (disk >90%, exited container)
+
+No external servers. No accounts. Everything runs locally on your machine.
 
 ---
 
@@ -108,14 +124,14 @@ watch_dirs: Mutex::new(vec![
 
 ## Tech stack
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Rust 1.98, Tauri v2 |
-| System info | `sysinfo` crate |
-| Repo scanning | `walkdir` + `git` CLI |
-| Container info | `docker` CLI |
-| Frontend | Vanilla HTML, CSS, JS |
-| IPC | Tauri `invoke` API |
+| Layer | Technology | Why |
+|-------|-----------|-----|
+| Desktop shell | [Tauri v2](https://tauri.app) | Rust-powered, ~5 MB bundle size vs ~200 MB for Electron |
+| Backend language | Rust 1.98 | Memory-safe, fast, no garbage-collector pauses |
+| Disk info | `sysinfo` crate | Cross-platform disk stats with one API call |
+| Repo scanning | `walkdir` + `git` CLI | Reads real git state without a heavy library |
+| Container info | `docker` CLI | No Docker SDK needed — just parses its JSON output |
+| Frontend | Vanilla HTML/CSS/JS | Zero build step, tiny footprint, easy to modify |
 
 ---
 
