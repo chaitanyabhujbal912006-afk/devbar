@@ -79,8 +79,12 @@ pub fn scan_git_repos(root_dirs: &[String]) -> Vec<RepoStatus> {
         for _ in walker {}
     }
 
+    let mut seen_paths = std::collections::HashSet::new();
+    repos.retain(|r| seen_paths.insert(r.path.clone()));
+
     repos
 }
+
 
 
 fn inspect_repo(path: &Path) -> Option<RepoStatus> {
