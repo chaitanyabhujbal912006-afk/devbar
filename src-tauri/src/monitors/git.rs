@@ -140,3 +140,18 @@ fn inspect_repo(path: &Path) -> Option<RepoStatus> {
     })
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scan_projects() {
+        let repos = scan_git_repos(&["C:\\projects".to_string()]);
+        println!("FOUND REPOS ({})", repos.len());
+        for r in &repos {
+            println!("  - {} (branch: {}, dirty: {}, changed: {})", r.name, r.branch, r.dirty, r.changed_files);
+        }
+    }
+}
+
+
