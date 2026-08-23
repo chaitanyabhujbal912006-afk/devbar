@@ -144,13 +144,29 @@ addDirForm.addEventListener("submit", (e) => {
   }
 });
 
+let lastRefreshTime = null;
+
+function updateTimestampDisplay() {
+  if (!lastRefreshTime) return;
+  const elapsedSec = Math.floor((Date.now() - lastRefreshTime) / 1000);
+  if (elapsedSec < 5) {
+    lastUpdatedEl.textContent = "Updated just now";
+  } else if (elapsedSec < 60) {
+    lastUpdatedEl.textContent = `Updated ${elapsedSec}s ago`;
+  } else {
+    const min = Math.floor(elapsedSec / 60);
+    lastUpdatedEl.textContent = `Updated ${min}m ago`;
+  }
+}
+
 async function refresh() {
   try {
     const data = await invoke("get_status");
     renderDisks(data.disks);
     renderRepos(data.repos);
     renderContainers(data.docker);
-    lastUpdatedEl.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+    lastRefreshTime = Date.now();
+    updateTimestampDisplay();
   } catch (err) {
     lastUpdatedEl.textContent = `Error: ${err}`;
     console.error(err);
@@ -182,8 +198,9 @@ async function initAutostart() {
   });
 }
 
-// Initial load + auto-refresh every 60s
+// Initial load + auto-refresh every 60s + 1s relative timestamp update
 loadWatchDirs();
 initAutostart();
 refresh();
 setInterval(refresh, 60_000);
+setInterval(updateTimestampDisplay, 1000);

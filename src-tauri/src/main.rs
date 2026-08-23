@@ -238,13 +238,19 @@ fn main() {
                 }
             });
 
-            // Hide the window instead of closing it when the user clicks away/closes it.
+            // Hide the window when the user clicks away (blur) or requests close.
             if let Some(window) = app.get_webview_window("main") {
                 let win_clone = window.clone();
                 window.on_window_event(move |event| {
-                    if let WindowEvent::CloseRequested { api, .. } = event {
-                        api.prevent_close();
-                        let _ = win_clone.hide();
+                    match event {
+                        WindowEvent::CloseRequested { api, .. } => {
+                            api.prevent_close();
+                            let _ = win_clone.hide();
+                        }
+                        WindowEvent::Focused(false) => {
+                            let _ = win_clone.hide();
+                        }
+                        _ => {}
                     }
                 });
             }
