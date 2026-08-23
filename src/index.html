@@ -16,14 +16,23 @@
     </header>
 
     <div id="settings-panel" class="settings-panel hidden">
-      <div class="settings-header">
-        <h2>Watched Folders</h2>
+      <div class="settings-section">
+        <div class="settings-header">
+          <h2>Watched Folders</h2>
+        </div>
+        <div id="watch-dirs-list" class="list"></div>
+        <form id="add-dir-form" class="add-dir-form">
+          <input type="text" id="dir-input" placeholder="e.g. ~/projects or C:\code" required />
+          <button type="submit" id="add-dir-btn">Add</button>
+        </form>
       </div>
-      <div id="watch-dirs-list" class="list"></div>
-      <form id="add-dir-form" class="add-dir-form">
-        <input type="text" id="dir-input" placeholder="e.g. ~/projects or C:\code" required />
-        <button type="submit" id="add-dir-btn">Add</button>
-      </form>
+
+      <div class="settings-section" style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #3f3f46;">
+        <div class="setting-toggle-row">
+          <label for="autostart-toggle">Launch at login</label>
+          <input type="checkbox" id="autostart-toggle" />
+        </div>
+      </div>
     </div>
 
     <div id="monitors-view">

@@ -157,9 +157,33 @@ async function refresh() {
   }
 }
 
-refreshBtn.addEventListener("click", refresh);
+const autostartToggle = document.getElementById("autostart-toggle");
+
+async function initAutostart() {
+  if (!autostartToggle) return;
+  try {
+    const enabled = await invoke("plugin:autostart|is_enabled");
+    autostartToggle.checked = !!enabled;
+  } catch (err) {
+    console.warn("Autostart status check failed:", err);
+  }
+
+  autostartToggle.addEventListener("change", async () => {
+    try {
+      if (autostartToggle.checked) {
+        await invoke("plugin:autostart|enable");
+      } else {
+        await invoke("plugin:autostart|disable");
+      }
+    } catch (err) {
+      console.error("Failed to toggle autostart:", err);
+      autostartToggle.checked = !autostartToggle.checked;
+    }
+  });
+}
 
 // Initial load + auto-refresh every 60s
 loadWatchDirs();
+initAutostart();
 refresh();
 setInterval(refresh, 60_000);
