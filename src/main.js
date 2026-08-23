@@ -168,10 +168,15 @@ async function refresh() {
     lastRefreshTime = Date.now();
     updateTimestampDisplay();
   } catch (err) {
+    const errorMsg = `<div class="empty" style="color: #f43f5e;">Error: ${err}</div>`;
+    diskListEl.innerHTML = errorMsg;
+    repoListEl.innerHTML = errorMsg;
+    containerListEl.innerHTML = errorMsg;
     lastUpdatedEl.textContent = `Error: ${err}`;
-    console.error(err);
+    console.error("get_status failed:", err);
   }
 }
+
 
 const autostartToggle = document.getElementById("autostart-toggle");
 

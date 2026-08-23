@@ -1,5 +1,7 @@
 use serde::Serialize;
-use std::process::Command;
+use std::process::{Command, Output, Stdio};
+use std::time::Duration;
+use wait_timeout::ChildExt;
 
 #[derive(Serialize, Clone)]
 pub struct ContainerInfo {
@@ -15,23 +17,34 @@ pub struct DockerStatus {
     pub containers: Vec<ContainerInfo>,
 }
 
+fn run_cmd_with_timeout(mut cmd: Command, timeout: Duration) -> Option<Output> {
+    let mut child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().ok()?;
+    match child.wait_timeout(timeout) {
+        Ok(Some(_)) => child.wait_with_output().ok(),
+        _ => {
+            let _ = child.kill();
+            let _ = child.wait();
+            None
+        }
+    }
+}
+
 pub fn get_docker_status() -> DockerStatus {
     // Attempt to call `docker ps -a --format json`.
     // `--format json` outputs one JSON object per line (NDJSON) since Docker 20.10.
-    let output = Command::new("docker")
-        .args(["ps", "-a", "--format", "json"])
-        .output();
+    let mut cmd = Command::new("docker");
+    cmd.args(["ps", "-a", "--format", "json"]);
 
-    let output = match output {
-        Ok(out) => out,
-        // docker binary not found in PATH
-        Err(_) => return DockerStatus { available: false, containers: vec![] },
+    let output = match run_cmd_with_timeout(cmd, Duration::from_secs(3)) {
+        Some(out) => out,
+        None => return DockerStatus { available: false, containers: vec![] },
     };
 
     if !output.status.success() {
         // Daemon not running, permission denied, or other runtime error.
         return DockerStatus { available: false, containers: vec![] };
     }
+
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut containers = Vec::new();

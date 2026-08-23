@@ -56,9 +56,18 @@ pub struct AppState {
     pub notified_keys: Mutex<HashSet<String>>,
 }
 
+impl AppState {
+    pub fn get_watch_dirs(&self) -> Vec<String> {
+        self.watch_dirs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+}
+
 #[tauri::command]
 fn get_status(state: tauri::State<AppState>) -> serde_json::Value {
-    let dirs = state.watch_dirs.lock().unwrap().clone();
+    let dirs = state.get_watch_dirs();
     let disks = get_disk_status();
     let repos = scan_git_repos(&dirs);
     let docker = get_docker_status();
@@ -72,12 +81,12 @@ fn get_status(state: tauri::State<AppState>) -> serde_json::Value {
 
 #[tauri::command]
 fn get_watch_dirs(state: tauri::State<AppState>) -> Vec<String> {
-    state.watch_dirs.lock().unwrap().clone()
+    state.get_watch_dirs()
 }
 
 #[tauri::command]
 fn set_watch_dirs(state: tauri::State<AppState>, dirs: Vec<String>) -> Vec<String> {
-    let mut watch = state.watch_dirs.lock().unwrap();
+    let mut watch = state.watch_dirs.lock().unwrap_or_else(|e| e.into_inner());
     *watch = dirs.clone();
     save_watch_dirs(&dirs);
     dirs
@@ -95,11 +104,14 @@ fn toggle_window(app: &tauri::AppHandle) {
 }
 
 fn check_and_notify(app_handle: &tauri::AppHandle, state: &AppState) {
-    let dirs = state.watch_dirs.lock().unwrap().clone();
+    let dirs = state.get_watch_dirs();
     let disks = get_disk_status();
     let repos = scan_git_repos(&dirs);
 
-    let mut notified = state.notified_keys.lock().unwrap();
+    let mut notified = state
+        .notified_keys
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut active_keys = HashSet::new();
 
     // Check critical disks
@@ -169,7 +181,7 @@ fn update_tray_icon(
     normal_icon: &Option<tauri::image::Image>,
     state: &AppState,
 ) {
-    let dirs = state.watch_dirs.lock().unwrap().clone();
+    let dirs = state.get_watch_dirs();
     let disks = get_disk_status();
     let repos = scan_git_repos(&dirs);
 
@@ -204,8 +216,15 @@ fn main() {
             let quit = MenuItem::with_id(app, "quit", "Quit DevBar", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&quit])?;
 
-            let _tray = TrayIconBuilder::with_id("main")
-                .icon(app.default_window_icon().unwrap().clone())
+            let normal_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")).ok();
+
+            let tray_icon = app
+                .default_window_icon()
+                .cloned()
+                .or_else(|| normal_icon.clone());
+
+
+            let mut builder = TrayIconBuilder::with_id("main")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| {
@@ -222,8 +241,14 @@ fn main() {
                     {
                         toggle_window(tray.app_handle());
                     }
-                })
-                .build(app)?;
+                });
+
+            if let Some(icon) = tray_icon {
+                builder = builder.icon(icon);
+            }
+
+            let _tray = builder.build(app)?;
+
 
             let handle = app.handle().clone();
             let normal_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")).ok();

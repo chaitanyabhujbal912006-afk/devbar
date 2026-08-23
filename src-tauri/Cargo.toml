@@ -18,6 +18,8 @@ sysinfo = "0.32"
 walkdir = "2"
 shellexpand = "3"
 dirs = "6"
+wait-timeout = "0.2"
+
 
 [[bin]]
 name = "devbar"
