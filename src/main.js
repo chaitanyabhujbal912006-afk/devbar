@@ -1,12 +1,3 @@
-const invoke = (...args) => {
-  const invoker = window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke;
-  if (!invoker) {
-    return Promise.reject(new Error("Tauri IPC API is not available on window.__TAURI__"));
-  }
-  return invoker(...args);
-};
-
-
 const diskListEl = document.getElementById("disk-list");
 const repoListEl = document.getElementById("repo-list");
 const containerListEl = document.getElementById("container-list");
@@ -19,7 +10,10 @@ const watchDirsListEl = document.getElementById("watch-dirs-list");
 const addDirForm = document.getElementById("add-dir-form");
 const dirInput = document.getElementById("dir-input");
 
+const { invoke } = window.__TAURI__.core;
+
 let currentWatchDirs = [];
+
 
 function renderDisks(disks) {
   diskListEl.innerHTML = "";
