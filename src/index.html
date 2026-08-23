@@ -9,23 +9,39 @@
   <div class="container">
     <header>
       <span class="title">DevBar</span>
-      <button id="refresh-btn" title="Refresh now">⟳</button>
+      <div class="header-actions">
+        <button id="settings-btn" title="Settings">⚙</button>
+        <button id="refresh-btn" title="Refresh now">⟳</button>
+      </div>
     </header>
 
-    <section class="block">
-      <h2>Disk Space</h2>
-      <div id="disk-list" class="list"></div>
-    </section>
+    <div id="settings-panel" class="settings-panel hidden">
+      <div class="settings-header">
+        <h2>Watched Folders</h2>
+      </div>
+      <div id="watch-dirs-list" class="list"></div>
+      <form id="add-dir-form" class="add-dir-form">
+        <input type="text" id="dir-input" placeholder="e.g. ~/projects or C:\code" required />
+        <button type="submit" id="add-dir-btn">Add</button>
+      </form>
+    </div>
 
-    <section class="block">
-      <h2>Git Repos</h2>
-      <div id="repo-list" class="list"></div>
-    </section>
+    <div id="monitors-view">
+      <section class="block">
+        <h2>Disk Space</h2>
+        <div id="disk-list" class="list"></div>
+      </section>
 
-    <section class="block">
-      <h2>Containers</h2>
-      <div id="container-list" class="list"></div>
-    </section>
+      <section class="block">
+        <h2>Git Repos</h2>
+        <div id="repo-list" class="list"></div>
+      </section>
+
+      <section class="block">
+        <h2>Containers</h2>
+        <div id="container-list" class="list"></div>
+      </section>
+    </div>
 
     <footer>
       <span id="last-updated">Loading…</span>

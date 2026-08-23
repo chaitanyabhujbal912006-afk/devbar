@@ -6,6 +6,14 @@ const containerListEl = document.getElementById("container-list");
 const lastUpdatedEl = document.getElementById("last-updated");
 const refreshBtn = document.getElementById("refresh-btn");
 
+const settingsBtn = document.getElementById("settings-btn");
+const settingsPanel = document.getElementById("settings-panel");
+const watchDirsListEl = document.getElementById("watch-dirs-list");
+const addDirForm = document.getElementById("add-dir-form");
+const dirInput = document.getElementById("dir-input");
+
+let currentWatchDirs = [];
+
 function renderDisks(disks) {
   diskListEl.innerHTML = "";
   if (!disks.length) {
@@ -41,6 +49,7 @@ function renderRepos(repos) {
     repoListEl.appendChild(row);
   }
 }
+
 function renderContainers(docker) {
   containerListEl.innerHTML = "";
   if (!docker.available) {
@@ -66,6 +75,75 @@ function renderContainers(docker) {
   }
 }
 
+function renderWatchDirs(dirs) {
+  currentWatchDirs = dirs;
+  watchDirsListEl.innerHTML = "";
+  if (!dirs.length) {
+    watchDirsListEl.innerHTML = `<div class="empty">No folders watched</div>`;
+    return;
+  }
+  dirs.forEach((dir, index) => {
+    const item = document.createElement("div");
+    item.className = "dir-item";
+    item.innerHTML = `
+      <span class="dir-path" title="${dir}">${dir}</span>
+      <button class="remove-dir-btn" data-index="${index}" title="Remove folder">×</button>
+    `;
+    watchDirsListEl.appendChild(item);
+  });
+}
+
+async function loadWatchDirs() {
+  try {
+    const dirs = await invoke("get_watch_dirs");
+    renderWatchDirs(dirs);
+  } catch (err) {
+    console.error("Failed to load watch dirs:", err);
+  }
+}
+
+async function updateWatchDirs(newDirs) {
+  try {
+    const updated = await invoke("set_watch_dirs", { dirs: newDirs });
+    renderWatchDirs(updated);
+    await refresh();
+  } catch (err) {
+    console.error("Failed to update watch dirs:", err);
+  }
+}
+
+settingsBtn.addEventListener("click", () => {
+  const isHidden = settingsPanel.classList.contains("hidden");
+  if (isHidden) {
+    settingsPanel.classList.remove("hidden");
+    settingsBtn.classList.add("active");
+  } else {
+    settingsPanel.classList.add("hidden");
+    settingsBtn.classList.remove("active");
+  }
+});
+
+watchDirsListEl.addEventListener("click", (e) => {
+  if (e.target.classList.contains("remove-dir-btn")) {
+    const index = parseInt(e.target.dataset.index, 10);
+    if (!isNaN(index)) {
+      const nextDirs = [...currentWatchDirs];
+      nextDirs.splice(index, 1);
+      updateWatchDirs(nextDirs);
+    }
+  }
+});
+
+addDirForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const newDir = dirInput.value.trim();
+  if (newDir && !currentWatchDirs.includes(newDir)) {
+    const nextDirs = [...currentWatchDirs, newDir];
+    updateWatchDirs(nextDirs);
+    dirInput.value = "";
+  }
+});
+
 async function refresh() {
   try {
     const data = await invoke("get_status");
@@ -82,5 +160,6 @@ async function refresh() {
 refreshBtn.addEventListener("click", refresh);
 
 // Initial load + auto-refresh every 60s
+loadWatchDirs();
 refresh();
 setInterval(refresh, 60_000);

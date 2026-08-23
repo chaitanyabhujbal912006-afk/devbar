@@ -19,14 +19,104 @@ header {
 
 .title { font-weight: 600; font-size: 14px; }
 
-#refresh-btn {
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+#refresh-btn, #settings-btn {
   background: none;
   border: none;
   color: #a1a1aa;
   cursor: pointer;
   font-size: 15px;
+  line-height: 1;
 }
-#refresh-btn:hover { color: #fff; }
+#refresh-btn:hover, #settings-btn:hover { color: #fff; }
+#settings-btn.active { color: #38bdf8; }
+
+.hidden { display: none !important; }
+
+.settings-panel {
+  background: #27282b;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 14px;
+}
+
+.settings-header h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #a1a1aa;
+  margin-bottom: 8px;
+}
+
+.add-dir-form {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.add-dir-form input {
+  flex: 1;
+  background: #1e1f22;
+  border: 1px solid #3f3f46;
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: #e4e4e7;
+  font-size: 11px;
+  outline: none;
+}
+
+.add-dir-form input:focus {
+  border-color: #38bdf8;
+}
+
+.add-dir-form button {
+  background: #0284c7;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.add-dir-form button:hover {
+  background: #0369a1;
+}
+
+.dir-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1e1f22;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.dir-path {
+  word-break: break-all;
+  font-family: monospace;
+}
+
+.remove-dir-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.remove-dir-btn:hover {
+  color: #f87171;
+}
 
 .block { margin-bottom: 14px; }
 

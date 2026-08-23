@@ -6,6 +6,8 @@ mod monitors;
 use monitors::disk::get_disk_status;
 use monitors::docker::get_docker_status;
 use monitors::git::scan_git_repos;
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
@@ -13,8 +15,40 @@ use tauri::{
     Manager, WindowEvent,
 };
 
+fn get_config_path() -> Option<PathBuf> {
+    let mut path = dirs::config_dir()?;
+    path.push("devbar");
+    let _ = fs::create_dir_all(&path);
+    path.push("watch_dirs.json");
+    Some(path)
+}
+
+fn load_watch_dirs() -> Vec<String> {
+    if let Some(path) = get_config_path() {
+        if path.exists() {
+            if let Ok(content) = fs::read_to_string(&path) {
+                if let Ok(dirs) = serde_json::from_str::<Vec<String>>(&content) {
+                    return dirs;
+                }
+            }
+        }
+    }
+    vec![
+        shellexpand::tilde("~/dev").to_string(),
+        shellexpand::tilde("~/projects").to_string(),
+        shellexpand::tilde("~/code").to_string(),
+    ]
+}
+
+fn save_watch_dirs(dirs: &[String]) {
+    if let Some(path) = get_config_path() {
+        if let Ok(json) = serde_json::to_string_pretty(dirs) {
+            let _ = fs::write(path, json);
+        }
+    }
+}
+
 // Shared app state: the folder(s) we scan for git repos.
-// Defaults to the user's home "dev" folder; user can change this later via settings.
 pub struct AppState {
     pub watch_dirs: Mutex<Vec<String>>,
 }
@@ -34,9 +68,16 @@ fn get_status(state: tauri::State<AppState>) -> serde_json::Value {
 }
 
 #[tauri::command]
-fn set_watch_dirs(state: tauri::State<AppState>, dirs: Vec<String>) {
+fn get_watch_dirs(state: tauri::State<AppState>) -> Vec<String> {
+    state.watch_dirs.lock().unwrap().clone()
+}
+
+#[tauri::command]
+fn set_watch_dirs(state: tauri::State<AppState>, dirs: Vec<String>) -> Vec<String> {
     let mut watch = state.watch_dirs.lock().unwrap();
-    *watch = dirs;
+    *watch = dirs.clone();
+    save_watch_dirs(&dirs);
+    dirs
 }
 
 fn toggle_window(app: &tauri::AppHandle) {
@@ -51,17 +92,13 @@ fn toggle_window(app: &tauri::AppHandle) {
 }
 
 fn main() {
+    let watch_dirs = load_watch_dirs();
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(AppState {
-            // Sensible default: scan common project folders. User can override from the UI.
-            watch_dirs: Mutex::new(vec![
-                shellexpand::tilde("~/dev").to_string(),
-                shellexpand::tilde("~/projects").to_string(),
-                shellexpand::tilde("~/code").to_string(),
-            ]),
+            watch_dirs: Mutex::new(watch_dirs),
         })
-        .invoke_handler(tauri::generate_handler![get_status, set_watch_dirs])
+        .invoke_handler(tauri::generate_handler![get_status, get_watch_dirs, set_watch_dirs])
         .setup(|app| {
             let quit = MenuItem::with_id(app, "quit", "Quit DevBar", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&quit])?;
