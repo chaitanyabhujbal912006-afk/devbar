@@ -33,8 +33,9 @@ function renderDisks(disks) {
 }
 
 function renderRepos(repos) {
+  console.log("[devbar] renderRepos called with:", repos);
   repoListEl.innerHTML = "";
-  if (!repos.length) {
+  if (!repos || !Array.isArray(repos) || !repos.length) {
     repoListEl.innerHTML = `<div class="empty">No git repos found in watched folders</div>`;
     return;
   }
@@ -42,14 +43,15 @@ function renderRepos(repos) {
     const status = r.dirty ? "warn" : "ok";
     const row = document.createElement("div");
     row.className = "item";
-    row.title = r.path;
+    row.title = r.path || "";
     row.innerHTML = `
-      <span><span class="dot ${status}"></span>${r.name} <span class="meta">(${r.branch})</span></span>
-      <span class="meta">${r.changed_files} changed · ${r.unpushed_commits} unpushed</span>
+      <span><span class="dot ${status}"></span>${r.name || "Unknown"} <span class="meta">(${r.branch || "main"})</span></span>
+      <span class="meta">${r.changed_files ?? 0} changed · ${r.unpushed_commits ?? 0} unpushed</span>
     `;
     repoListEl.appendChild(row);
   }
 }
+
 
 function renderContainers(docker) {
   containerListEl.innerHTML = "";
@@ -160,9 +162,14 @@ function updateTimestampDisplay() {
   }
 }
 
+if (refreshBtn) {
+  refreshBtn.addEventListener("click", refresh);
+}
+
 async function refresh() {
   try {
     const data = await invoke("get_status");
+    console.log("[devbar] get_status response data:", data);
     renderDisks(data.disks);
     renderRepos(data.repos);
     renderContainers(data.docker);
@@ -177,6 +184,7 @@ async function refresh() {
     console.error("get_status failed:", err);
   }
 }
+
 
 
 const autostartToggle = document.getElementById("autostart-toggle");
