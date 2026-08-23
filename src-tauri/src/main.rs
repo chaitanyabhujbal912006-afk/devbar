@@ -6,6 +6,8 @@ mod monitors;
 use monitors::disk::get_disk_status;
 use monitors::docker::get_docker_status;
 use monitors::git::scan_git_repos;
+use monitors::ports::get_port_status;
+
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -152,13 +154,19 @@ fn get_status(state: tauri::State<AppState>) -> serde_json::Value {
     let docker = get_docker_status();
     println!("[devbar] get_status: docker check done (available: {})", docker.available);
 
+    println!("[devbar] get_status: checking listening ports...");
+    let ports = get_port_status();
+    println!("[devbar] get_status: port check done ({})", ports.len());
+
     println!("[devbar] get_status: returning JSON status");
     serde_json::json!({
         "disks": disks,
         "repos": repos,
         "docker": docker,
+        "ports": ports,
     })
 }
+
 
 
 #[tauri::command]

@@ -1,7 +1,9 @@
 const diskListEl = document.getElementById("disk-list");
 const repoListEl = document.getElementById("repo-list");
 const containerListEl = document.getElementById("container-list");
+const portListEl = document.getElementById("port-list");
 const lastUpdatedEl = document.getElementById("last-updated");
+
 const refreshBtn = document.getElementById("refresh-btn");
 
 const settingsBtn = document.getElementById("settings-btn");
@@ -162,6 +164,25 @@ function updateTimestampDisplay() {
   }
 }
 
+function renderPorts(ports) {
+  if (!portListEl) return;
+  portListEl.innerHTML = "";
+  if (!ports || !Array.isArray(ports) || !ports.length) {
+    portListEl.innerHTML = `<div class="empty">No active listening ports</div>`;
+    return;
+  }
+  for (const p of ports) {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.title = `PID: ${p.pid} — ${p.address}`;
+    row.innerHTML = `
+      <span><span class="dot ok"></span><strong style="color: #38bdf8;">:${p.port}</strong> <span class="meta">(${p.process_name})</span></span>
+      <span class="meta">PID ${p.pid}</span>
+    `;
+    portListEl.appendChild(row);
+  }
+}
+
 if (refreshBtn) {
   refreshBtn.addEventListener("click", refresh);
 }
@@ -173,6 +194,7 @@ async function refresh() {
     renderDisks(data.disks);
     renderRepos(data.repos);
     renderContainers(data.docker);
+    renderPorts(data.ports);
     lastRefreshTime = Date.now();
     updateTimestampDisplay();
   } catch (err) {
@@ -180,10 +202,12 @@ async function refresh() {
     diskListEl.innerHTML = errorMsg;
     repoListEl.innerHTML = errorMsg;
     containerListEl.innerHTML = errorMsg;
+    if (portListEl) portListEl.innerHTML = errorMsg;
     lastUpdatedEl.textContent = `Error: ${err}`;
     console.error("get_status failed:", err);
   }
 }
+
 
 
 
