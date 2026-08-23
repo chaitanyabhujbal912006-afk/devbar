@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capabilities for the DevBar app window",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "autostart:default",
+    "autostart:allow-is-enabled",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "notification:default",
+    "shell:default"
+  ]
+}
