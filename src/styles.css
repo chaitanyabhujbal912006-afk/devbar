@@ -1,4 +1,7 @@
-* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -8,7 +11,47 @@ body {
   user-select: none;
 }
 
-.container { padding: 12px; }
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+#monitors-view {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Scrollbar styling */
+#monitors-view::-webkit-scrollbar,
+.list::-webkit-scrollbar,
+#watch-dirs-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+#monitors-view::-webkit-scrollbar-track,
+.list::-webkit-scrollbar-track,
+#watch-dirs-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+#monitors-view::-webkit-scrollbar-thumb,
+.list::-webkit-scrollbar-thumb,
+#watch-dirs-list::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 3px;
+}
+
+#monitors-view::-webkit-scrollbar-thumb:hover,
+.list::-webkit-scrollbar-thumb:hover,
+#watch-dirs-list::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
 
 header {
   display: flex;
@@ -141,7 +184,15 @@ header {
   margin-bottom: 6px;
 }
 
-.list { display: flex; flex-direction: column; gap: 6px; }
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 
 .item {
   display: flex;
