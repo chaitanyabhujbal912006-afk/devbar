@@ -1,0 +1,38 @@
+{
+  "productName": "DevBar",
+  "version": "0.1.0",
+  "identifier": "dev.devbar.app",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "DevBar",
+        "width": 340,
+        "height": 560,
+        "resizable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "visible": true,
+        "skipTaskbar": true
+      }
+    ],
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "menuOnLeftClick": false
+    },
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.ico"
+    ]
+  }
+}

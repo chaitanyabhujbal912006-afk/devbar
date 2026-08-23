@@ -1,0 +1,16 @@
+# Node
+node_modules/
+
+# Rust build output
+src-tauri/target/
+
+# Tauri build output (external target dir we're using)
+# (devbar-target lives in ~/.cargo, not here, so nothing to exclude)
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

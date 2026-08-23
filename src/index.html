@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DevBar</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <span class="title">DevBar</span>
+      <button id="refresh-btn" title="Refresh now">⟳</button>
+    </header>
+
+    <section class="block">
+      <h2>Disk Space</h2>
+      <div id="disk-list" class="list"></div>
+    </section>
+
+    <section class="block">
+      <h2>Git Repos</h2>
+      <div id="repo-list" class="list"></div>
+    </section>
+
+    <section class="block">
+      <h2>Containers</h2>
+      <div id="container-list" class="list"></div>
+    </section>
+
+    <footer>
+      <span id="last-updated">Loading…</span>
+    </footer>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
