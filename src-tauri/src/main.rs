@@ -6,6 +6,7 @@ mod monitors;
 use monitors::disk::get_disk_status;
 use monitors::docker::get_docker_status;
 use monitors::git::scan_git_repos;
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -14,6 +15,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager, WindowEvent,
 };
+use tauri_plugin_notification::NotificationExt;
 
 fn get_config_path() -> Option<PathBuf> {
     let mut path = dirs::config_dir()?;
@@ -48,9 +50,10 @@ fn save_watch_dirs(dirs: &[String]) {
     }
 }
 
-// Shared app state: the folder(s) we scan for git repos.
+// Shared app state: watch dirs and notification state tracking.
 pub struct AppState {
     pub watch_dirs: Mutex<Vec<String>>,
+    pub notified_keys: Mutex<HashSet<String>>,
 }
 
 #[tauri::command]
@@ -91,14 +94,73 @@ fn toggle_window(app: &tauri::AppHandle) {
     }
 }
 
-fn check_has_warning(dirs: &[String]) -> bool {
+fn check_and_notify(app_handle: &tauri::AppHandle, state: &AppState) {
+    let dirs = state.watch_dirs.lock().unwrap().clone();
     let disks = get_disk_status();
-    let has_critical_disk = disks.iter().any(|d| d.status == "critical");
+    let repos = scan_git_repos(&dirs);
 
-    let repos = scan_git_repos(dirs);
-    let has_high_changed_repo = repos.iter().any(|r| r.changed_files > 20);
+    let mut notified = state.notified_keys.lock().unwrap();
+    let mut active_keys = HashSet::new();
 
-    has_critical_disk || has_high_changed_repo
+    // Check critical disks
+    for disk in &disks {
+        if disk.status == "critical" {
+            let key = format!("disk_critical_{}", disk.name);
+            active_keys.insert(key.clone());
+            if !notified.contains(&key) {
+                let _ = app_handle
+                    .notification()
+                    .builder()
+                    .title("DevBar Alert — Critical Disk")
+                    .body(format!(
+                        "Drive {} is critical ({:.1}% used, {:.1} GB free)",
+                        disk.name, disk.percent_used, disk.free_gb
+                    ))
+                    .show();
+                notified.insert(key);
+            }
+        }
+    }
+
+    // Check git repo thresholds (>20 changed files or >5 unpushed commits)
+    for repo in &repos {
+        if repo.changed_files > 20 {
+            let key = format!("repo_changed_{}", repo.name);
+            active_keys.insert(key.clone());
+            if !notified.contains(&key) {
+                let _ = app_handle
+                    .notification()
+                    .builder()
+                    .title("DevBar Alert — Git Repo")
+                    .body(format!(
+                        "Repo '{}' has {} changed files",
+                        repo.name, repo.changed_files
+                    ))
+                    .show();
+                notified.insert(key);
+            }
+        }
+
+        if repo.unpushed_commits > 5 {
+            let key = format!("repo_unpushed_{}", repo.name);
+            active_keys.insert(key.clone());
+            if !notified.contains(&key) {
+                let _ = app_handle
+                    .notification()
+                    .builder()
+                    .title("DevBar Alert — Unpushed Commits")
+                    .body(format!(
+                        "Repo '{}' has {} unpushed commits",
+                        repo.name, repo.unpushed_commits
+                    ))
+                    .show();
+                notified.insert(key);
+            }
+        }
+    }
+
+    // Clean up keys that no longer cross threshold
+    notified.retain(|k| active_keys.contains(k));
 }
 
 fn update_tray_icon(
@@ -108,7 +170,11 @@ fn update_tray_icon(
     state: &AppState,
 ) {
     let dirs = state.watch_dirs.lock().unwrap().clone();
-    let is_warning = check_has_warning(&dirs);
+    let disks = get_disk_status();
+    let repos = scan_git_repos(&dirs);
+
+    let is_warning = disks.iter().any(|d| d.status == "critical")
+        || repos.iter().any(|r| r.changed_files > 20);
 
     if let Some(tray) = app_handle.tray_by_id("main") {
         if is_warning {
@@ -127,8 +193,10 @@ fn main() {
     let watch_dirs = load_watch_dirs();
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(AppState {
             watch_dirs: Mutex::new(watch_dirs),
+            notified_keys: Mutex::new(HashSet::new()),
         })
         .invoke_handler(tauri::generate_handler![get_status, get_watch_dirs, set_watch_dirs])
         .setup(|app| {
@@ -164,6 +232,7 @@ fn main() {
                 loop {
                     let state = handle.state::<AppState>();
                     update_tray_icon(&handle, &warning_icon, &normal_icon, &state);
+                    check_and_notify(&handle, &state);
                     std::thread::sleep(std::time::Duration::from_secs(10));
                 }
             });
