@@ -25,21 +25,67 @@ fn get_config_path() -> Option<PathBuf> {
     Some(path)
 }
 
+fn resolve_path(p: &str) -> String {
+    let normalized = if p.starts_with("~/") || p == "~" {
+        if let Some(home) = dirs::home_dir() {
+            let relative = p.trim_start_matches("~/").trim_start_matches('~');
+            home.join(relative).to_string_lossy().to_string()
+        } else {
+            p.to_string()
+        }
+    } else {
+        p.to_string()
+    };
+    PathBuf::from(normalized).to_string_lossy().to_string()
+}
+
 fn load_watch_dirs() -> Vec<String> {
+    let mut default_dirs = Vec::new();
+
+    // Add parent directory of current working directory if available (e.g. C:\projects)
+    if let Ok(cwd) = std::env::current_dir() {
+        if let Some(parent) = cwd.parent() {
+            let parent_str = parent.to_string_lossy().to_string();
+            if !parent_str.is_empty() {
+                default_dirs.push(parent_str);
+            }
+        }
+    }
+
+    // Add home directory defaults (~/dev, ~/projects, ~/code) using dirs::home_dir()
+    if let Some(home) = dirs::home_dir() {
+        default_dirs.push(home.join("dev").to_string_lossy().to_string());
+        default_dirs.push(home.join("projects").to_string_lossy().to_string());
+        default_dirs.push(home.join("code").to_string_lossy().to_string());
+    }
+
+    let mut loaded_dirs = Vec::new();
     if let Some(path) = get_config_path() {
         if path.exists() {
             if let Ok(content) = fs::read_to_string(&path) {
                 if let Ok(dirs) = serde_json::from_str::<Vec<String>>(&content) {
-                    return dirs;
+                    loaded_dirs = dirs.into_iter().map(|d| resolve_path(&d)).collect();
                 }
             }
         }
     }
-    vec![
-        shellexpand::tilde("~/dev").to_string(),
-        shellexpand::tilde("~/projects").to_string(),
-        shellexpand::tilde("~/code").to_string(),
-    ]
+
+    let mut final_dirs = if loaded_dirs.is_empty() {
+        default_dirs
+    } else {
+        for def in default_dirs {
+            if !loaded_dirs.contains(&def) {
+                loaded_dirs.push(def);
+            }
+        }
+        loaded_dirs
+    };
+
+    let mut seen = HashSet::new();
+    final_dirs.retain(|d| seen.insert(d.clone()));
+
+    save_watch_dirs(&final_dirs);
+    final_dirs
 }
 
 fn save_watch_dirs(dirs: &[String]) {
@@ -49,6 +95,7 @@ fn save_watch_dirs(dirs: &[String]) {
         }
     }
 }
+
 
 // Shared app state: watch dirs and notification state tracking.
 pub struct AppState {
@@ -215,6 +262,8 @@ fn update_tray_icon(
 
 fn main() {
     let watch_dirs = load_watch_dirs();
+    println!("[devbar] watching folders: {:?}", watch_dirs);
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
