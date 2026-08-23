@@ -6,7 +6,9 @@
     "frontendDist": "../src"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
+
       {
         "label": "main",
         "title": "DevBar",
