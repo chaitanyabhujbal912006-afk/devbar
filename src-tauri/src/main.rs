@@ -91,6 +91,38 @@ fn toggle_window(app: &tauri::AppHandle) {
     }
 }
 
+fn check_has_warning(dirs: &[String]) -> bool {
+    let disks = get_disk_status();
+    let has_critical_disk = disks.iter().any(|d| d.status == "critical");
+
+    let repos = scan_git_repos(dirs);
+    let has_high_changed_repo = repos.iter().any(|r| r.changed_files > 20);
+
+    has_critical_disk || has_high_changed_repo
+}
+
+fn update_tray_icon(
+    app_handle: &tauri::AppHandle,
+    warning_icon: &Option<tauri::image::Image>,
+    normal_icon: &Option<tauri::image::Image>,
+    state: &AppState,
+) {
+    let dirs = state.watch_dirs.lock().unwrap().clone();
+    let is_warning = check_has_warning(&dirs);
+
+    if let Some(tray) = app_handle.tray_by_id("main") {
+        if is_warning {
+            if let Some(icon) = warning_icon {
+                let _ = tray.set_icon(Some(icon.clone()));
+            }
+        } else {
+            if let Some(icon) = normal_icon {
+                let _ = tray.set_icon(Some(icon.clone()));
+            }
+        }
+    }
+}
+
 fn main() {
     let watch_dirs = load_watch_dirs();
     tauri::Builder::default()
@@ -103,7 +135,7 @@ fn main() {
             let quit = MenuItem::with_id(app, "quit", "Quit DevBar", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&quit])?;
 
-            let _tray = TrayIconBuilder::new()
+            let _tray = TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .show_menu_on_left_click(false)
@@ -123,6 +155,18 @@ fn main() {
                     }
                 })
                 .build(app)?;
+
+            let handle = app.handle().clone();
+            let normal_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")).ok();
+            let warning_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon-warning.png")).ok();
+
+            std::thread::spawn(move || {
+                loop {
+                    let state = handle.state::<AppState>();
+                    update_tray_icon(&handle, &warning_icon, &normal_icon, &state);
+                    std::thread::sleep(std::time::Duration::from_secs(10));
+                }
+            });
 
             // Hide the window instead of closing it when the user clicks away/closes it.
             if let Some(window) = app.get_webview_window("main") {
