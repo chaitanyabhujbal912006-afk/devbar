@@ -6,61 +6,92 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="container">
-    <header>
-      <span class="title">DevBar</span>
-      <div class="header-actions">
-        <button id="settings-btn" title="Settings">⚙</button>
-        <button id="refresh-btn" title="Refresh now">⟳</button>
+  <div class="app-shell">
+
+    <!-- ── Drag-region titlebar ── -->
+    <header class="titlebar">
+      <!-- Full-bar drag handle; buttons sit above it via z-index -->
+      <div class="titlebar-drag" data-tauri-drag-region></div>
+
+      <div class="titlebar-left">
+        <!-- Inline SVG logo: pulse-line in a rounded square -->
+        <svg class="titlebar-logo" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none">
+          <rect width="32" height="32" rx="7" fill="#0f1117"/>
+          <polyline
+            points="3,16 8,16 10,10 12,22 14,13 16,19 18,11 20,16 29,16"
+            stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="titlebar-name">DevBar</span>
+      </div>
+
+      <div class="titlebar-right">
+        <button id="settings-btn" class="titlebar-btn" title="Settings">⚙</button>
+        <button id="refresh-btn"  class="titlebar-btn" title="Refresh now">⟳</button>
       </div>
     </header>
 
-    <div id="settings-panel" class="settings-panel hidden">
-      <div class="settings-section">
-        <div class="settings-header">
-          <h2>Watched Folders</h2>
+    <!-- ── Scrollable content area ── -->
+    <div class="content">
+
+      <!-- Settings panel -->
+      <div id="settings-panel" class="settings-panel hidden">
+
+        <div class="settings-section">
+          <div class="settings-header"><h2>Watched Folders</h2></div>
+          <div id="watch-dirs-list" class="list"><div class="empty">Loading folders…</div></div>
+          <form id="add-dir-form" class="add-dir-form">
+            <input type="text" id="dir-input" placeholder="e.g. ~/projects or C:\code" required />
+            <button type="submit" id="add-dir-btn">Add</button>
+          </form>
         </div>
-        <div id="watch-dirs-list" class="list"><div class="empty">Loading folders…</div></div>
-        <form id="add-dir-form" class="add-dir-form">
-          <input type="text" id="dir-input" placeholder="e.g. ~/projects or C:\code" required />
-          <button type="submit" id="add-dir-btn">Add</button>
-        </form>
+
+        <div class="settings-section">
+          <div class="settings-header"><h2>Theme</h2></div>
+          <div class="theme-selector">
+            <button class="theme-btn" data-theme="dark"     id="theme-dark">Dark</button>
+            <button class="theme-btn" data-theme="light"    id="theme-light">Light</button>
+            <button class="theme-btn" data-theme="midnight" id="theme-midnight">Midnight</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="setting-toggle-row">
+            <label for="autostart-toggle">Launch at login</label>
+            <input type="checkbox" id="autostart-toggle" />
+          </div>
+        </div>
+
       </div>
 
-      <div class="settings-section" style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #3f3f46;">
-        <div class="setting-toggle-row">
-          <label for="autostart-toggle">Launch at login</label>
-          <input type="checkbox" id="autostart-toggle" />
-        </div>
+      <!-- Monitor sections -->
+      <div id="monitors-view">
+
+        <section class="block">
+          <h2>Disk Space</h2>
+          <div id="disk-list" class="list"><div class="empty">Loading disk status…</div></div>
+        </section>
+
+        <section class="block">
+          <h2>Git Repos</h2>
+          <div id="repo-list" class="list"><div class="empty">Scanning git repositories…</div></div>
+        </section>
+
+        <section class="block">
+          <h2>Active Ports</h2>
+          <div id="port-list" class="list"><div class="empty">Scanning listening ports…</div></div>
+        </section>
+
+        <section class="block">
+          <h2>Containers</h2>
+          <div id="container-list" class="list"><div class="empty">Checking containers…</div></div>
+        </section>
+
       </div>
+
+      <footer>
+        <span id="last-updated">Loading…</span>
+      </footer>
     </div>
-
-    <div id="monitors-view">
-      <section class="block">
-        <h2>Disk Space</h2>
-        <div id="disk-list" class="list"><div class="empty">Loading disk status…</div></div>
-      </section>
-
-      <section class="block">
-        <h2>Git Repos</h2>
-        <div id="repo-list" class="list"><div class="empty">Scanning git repositories…</div></div>
-      </section>
-
-      <section class="block">
-        <h2>Containers</h2>
-        <div id="container-list" class="list"><div class="empty">Checking containers…</div></div>
-      </section>
-
-      <section class="block">
-        <h2>Active Ports</h2>
-        <div id="port-list" class="list"><div class="empty">Scanning listening ports…</div></div>
-      </section>
-    </div>
-
-
-    <footer>
-      <span id="last-updated">Loading…</span>
-    </footer>
   </div>
 
   <script type="module" src="main.js"></script>

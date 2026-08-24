@@ -1,98 +1,233 @@
+/* ─── Google Font Import ─────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ─── Theme Tokens ───────────────────────────────────────────────────────── */
+:root,
+[data-theme="dark"] {
+  --bg:          #0f1117;
+  --bg-gradient: linear-gradient(145deg, #0f1117 0%, #13161f 60%, #0a0d14 100%);
+  --surface:     rgba(30, 32, 40, 0.85);
+  --surface-2:   rgba(40, 43, 54, 0.9);
+  --border:      rgba(255,255,255,0.07);
+  --text:        #e4e4e7;
+  --text-muted:  #71717a;
+  --text-dim:    #52525b;
+  --accent:      #38bdf8;
+  --accent-dim:  rgba(56,189,248,0.12);
+  --accent-glow: rgba(56,189,248,0.3);
+  --header-bg:   rgba(15,17,23,0.95);
+  --input-bg:    rgba(15,17,23,0.8);
+  --scrollbar:   #27272a;
+  --dot-ok-glow:       rgba(34,197,94,0.45);
+  --dot-warn-glow:     rgba(234,179,8,0.45);
+  --dot-critical-glow: rgba(239,68,68,0.45);
+}
+
+[data-theme="light"] {
+  --bg:          #f1f5f9;
+  --bg-gradient: linear-gradient(145deg, #f1f5f9 0%, #e8edf5 60%, #dce4ef 100%);
+  --surface:     rgba(255,255,255,0.82);
+  --surface-2:   rgba(241,245,249,0.95);
+  --border:      rgba(0,0,0,0.09);
+  --text:        #1e293b;
+  --text-muted:  #64748b;
+  --text-dim:    #94a3b8;
+  --accent:      #0284c7;
+  --accent-dim:  rgba(2,132,199,0.10);
+  --accent-glow: rgba(2,132,199,0.25);
+  --header-bg:   rgba(255,255,255,0.92);
+  --input-bg:    rgba(255,255,255,0.9);
+  --scrollbar:   #cbd5e1;
+  --dot-ok-glow:       rgba(22,163,74,0.35);
+  --dot-warn-glow:     rgba(202,138,4,0.35);
+  --dot-critical-glow: rgba(220,38,38,0.35);
+}
+
+[data-theme="midnight"] {
+  --bg:          #000000;
+  --bg-gradient: linear-gradient(145deg, #000000 0%, #050508 60%, #000000 100%);
+  --surface:     rgba(10,10,18,0.92);
+  --surface-2:   rgba(18,18,28,0.95);
+  --border:      rgba(56,189,248,0.10);
+  --text:        #f0f4ff;
+  --text-muted:  #6272a4;
+  --text-dim:    #44475a;
+  --accent:      #bd93f9;
+  --accent-dim:  rgba(189,147,249,0.12);
+  --accent-glow: rgba(189,147,249,0.4);
+  --header-bg:   rgba(0,0,0,0.98);
+  --input-bg:    rgba(0,0,0,0.7);
+  --scrollbar:   #282a36;
+  --dot-ok-glow:       rgba(80,250,123,0.55);
+  --dot-warn-glow:     rgba(241,250,140,0.55);
+  --dot-critical-glow: rgba(255,85,85,0.55);
+}
+
+/* ─── Reset & Base ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
 html, body {
   height: 100%;
   overflow: hidden;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #1e1f22;
-  color: #e4e4e7;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
   font-size: 13px;
   user-select: none;
+  -webkit-font-smoothing: antialiased;
 }
 
-.container {
+/* ─── App Shell ──────────────────────────────────────────────────────────── */
+.app-shell {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 12px;
-  box-sizing: border-box;
+  background: var(--bg-gradient);
+  position: relative;
+}
+
+/* Subtle noise texture overlay for depth */
+.app-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Drag Region Header ─────────────────────────────────────────────────── */
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  z-index: 10;
+  /* Tauri drag region on the whole bar */
+}
+
+.titlebar-drag {
+  position: absolute;
+  inset: 0;
+  /* Actual drag handle — covers the whole bar except buttons */
+  cursor: grab;
+}
+.titlebar-drag:active { cursor: grabbing; }
+
+.titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  position: relative;
+  z-index: 1;
+  pointer-events: none; /* drag goes through to the overlay */
+}
+
+.titlebar-logo {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.titlebar-name {
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.titlebar-right {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  position: relative;
+  z-index: 1; /* above drag overlay so buttons are clickable */
+}
+
+.titlebar-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 4px 5px;
+  border-radius: 5px;
+  transition: color 0.15s, background 0.15s;
+}
+.titlebar-btn:hover { color: var(--text); background: var(--accent-dim); }
+.titlebar-btn.active { color: var(--accent); }
+
+/* ─── Scrollable Content ─────────────────────────────────────────────────── */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 10px 10px 0;
+  position: relative;
+  z-index: 1;
 }
 
 #monitors-view {
   flex: 1;
   overflow-y: auto;
   padding-right: 4px;
+  padding-bottom: 4px;
 }
 
-/* Scrollbar styling */
+/* ─── Scrollbars ─────────────────────────────────────────────────────────── */
 #monitors-view::-webkit-scrollbar,
 .list::-webkit-scrollbar,
 #watch-dirs-list::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
 }
-
 #monitors-view::-webkit-scrollbar-track,
 .list::-webkit-scrollbar-track,
 #watch-dirs-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
+  background: transparent;
 }
-
 #monitors-view::-webkit-scrollbar-thumb,
 .list::-webkit-scrollbar-thumb,
 #watch-dirs-list::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-  border-radius: 3px;
+  background: var(--scrollbar);
+  border-radius: 2px;
 }
 
-#monitors-view::-webkit-scrollbar-thumb:hover,
-.list::-webkit-scrollbar-thumb:hover,
-#watch-dirs-list::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
-}
-
-
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.title { font-weight: 600; font-size: 14px; }
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-#refresh-btn, #settings-btn {
-  background: none;
-  border: none;
-  color: #a1a1aa;
-  cursor: pointer;
-  font-size: 15px;
-  line-height: 1;
-}
-#refresh-btn:hover, #settings-btn:hover { color: #fff; }
-#settings-btn.active { color: #38bdf8; }
-
+/* ─── Settings Panel ─────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
 
 .settings-panel {
-  background: #27282b;
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
   padding: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.settings-section + .settings-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
 }
 
 .settings-header h2 {
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #a1a1aa;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
@@ -104,49 +239,46 @@ header {
 
 .add-dir-form input {
   flex: 1;
-  background: #1e1f22;
-  border: 1px solid #3f3f46;
-  border-radius: 4px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
   padding: 4px 8px;
-  color: #e4e4e7;
+  color: var(--text);
   font-size: 11px;
   outline: none;
+  transition: border-color 0.15s;
 }
-
-.add-dir-form input:focus {
-  border-color: #38bdf8;
-}
+.add-dir-form input:focus { border-color: var(--accent); }
 
 .add-dir-form button {
-  background: #0284c7;
+  background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 5px;
   padding: 4px 10px;
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
+  transition: opacity 0.15s;
 }
-
-.add-dir-form button:hover {
-  background: #0369a1;
-}
+.add-dir-form button:hover { opacity: 0.85; }
 
 .dir-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #1e1f22;
+  background: var(--input-bg);
   padding: 5px 8px;
-  border-radius: 4px;
+  border-radius: 5px;
   font-size: 11px;
+  margin-bottom: 4px;
 }
-
 .dir-path {
   word-break: break-all;
-  font-family: monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 10px;
+  color: var(--text);
 }
-
 .remove-dir-btn {
   background: none;
   border: none;
@@ -155,73 +287,163 @@ header {
   font-size: 14px;
   line-height: 1;
   padding: 0 4px;
+  transition: color 0.15s;
+}
+.remove-dir-btn:hover { color: #f87171; }
+
+/* ─── Theme Selector ─────────────────────────────────────────────────────── */
+.theme-selector {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.theme-btn {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 4px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  transition: all 0.15s;
+  text-align: center;
+}
+.theme-btn:hover { border-color: var(--accent); color: var(--text); }
+.theme-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 8px var(--accent-glow);
 }
 
+/* ─── Toggle Row ─────────────────────────────────────────────────────────── */
 .setting-toggle-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
-  color: #e4e4e7;
+  color: var(--text);
 }
-
 .setting-toggle-row input[type="checkbox"] {
   cursor: pointer;
-  accent-color: #0284c7;
+  accent-color: var(--accent);
 }
 
-.remove-dir-btn:hover {
-  color: #f87171;
-}
-
-.block { margin-bottom: 14px; }
+/* ─── Section Blocks ─────────────────────────────────────────────────────── */
+.block { margin-bottom: 12px; }
 
 .block h2 {
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #a1a1aa;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
   margin-bottom: 6px;
+  padding-bottom: 4px;
+  /* Accent underline */
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.block h2::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 24px;
+  height: 1px;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+  border-radius: 1px;
 }
 
+/* ─── Lists ──────────────────────────────────────────────────────────────── */
 .list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 240px;
+  gap: 5px;
+  max-height: 220px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: 2px;
 }
 
-
+/* ─── Item Rows ──────────────────────────────────────────────────────────── */
 .item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #27282b;
-  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
   padding: 6px 10px;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.item:hover {
+  background: var(--surface-2);
+  border-color: rgba(255,255,255,0.12);
+  transform: translateX(1px);
 }
 
-.item .name { font-weight: 500; }
-.item .meta { color: #a1a1aa; font-size: 11px; }
+.item .meta {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
 
+/* ─── Status Dots ────────────────────────────────────────────────────────── */
 .dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   display: inline-block;
-  margin-right: 6px;
+  margin-right: 7px;
+  flex-shrink: 0;
+  transition: box-shadow 0.2s;
 }
-.dot.ok { background: #22c55e; }
-.dot.warn { background: #eab308; }
-.dot.critical { background: #ef4444; }
+.dot.ok       { background: #22c55e; box-shadow: 0 0 6px var(--dot-ok-glow); }
+.dot.warn     { background: #eab308; box-shadow: 0 0 6px var(--dot-warn-glow); }
+.dot.critical { background: #ef4444; box-shadow: 0 0 6px var(--dot-critical-glow); }
 
-.empty { color: #71717a; font-style: italic; padding: 4px 0; }
+/* ─── Empty State ────────────────────────────────────────────────────────── */
+.empty { color: var(--text-dim); font-style: italic; padding: 4px 0; font-size: 11px; }
 
+/* ─── Footer ─────────────────────────────────────────────────────────────── */
 footer {
   text-align: center;
-  color: #71717a;
+  color: var(--text-dim);
   font-size: 10px;
-  margin-top: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
 }
+
+/* ─── Open in VS Code Button ─────────────────────────────────────────────── */
+.open-vscode-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 2px 7px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.open-vscode-btn:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+.open-vscode-btn:disabled { cursor: default; opacity: 0.6; }
+.open-vscode-btn--error   { border-color: #ef4444 !important; color: #ef4444 !important; }
+
+/* ─── Port Scanner ───────────────────────────────────────────────────────── */
+.port-num  { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+.port-free { color: var(--text-dim); font-style: italic; font-family: 'JetBrains Mono', monospace; }

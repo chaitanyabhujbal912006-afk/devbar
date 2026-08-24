@@ -1,16 +1,14 @@
-const diskListEl = document.getElementById("disk-list");
-const repoListEl = document.getElementById("repo-list");
-const containerListEl = document.getElementById("container-list");
-const portListEl = document.getElementById("port-list");
-const lastUpdatedEl = document.getElementById("last-updated");
-
-const refreshBtn = document.getElementById("refresh-btn");
-
-const settingsBtn = document.getElementById("settings-btn");
-const settingsPanel = document.getElementById("settings-panel");
-const watchDirsListEl = document.getElementById("watch-dirs-list");
-const addDirForm = document.getElementById("add-dir-form");
-const dirInput = document.getElementById("dir-input");
+const diskListEl       = document.getElementById('disk-list');
+const repoListEl       = document.getElementById('repo-list');
+const containerListEl  = document.getElementById('container-list');
+const portListEl       = document.getElementById('port-list');
+const lastUpdatedEl    = document.getElementById('last-updated');
+const refreshBtn       = document.getElementById('refresh-btn');
+const settingsBtn      = document.getElementById('settings-btn');
+const settingsPanel    = document.getElementById('settings-panel');
+const watchDirsListEl  = document.getElementById('watch-dirs-list');
+const addDirForm       = document.getElementById('add-dir-form');
+const dirInput         = document.getElementById('dir-input');
 
 const { invoke } = window.__TAURI__.core;
 
@@ -46,10 +44,29 @@ function renderRepos(repos) {
     const row = document.createElement("div");
     row.className = "item";
     row.title = r.path || "";
-    row.innerHTML = `
-      <span><span class="dot ${status}"></span>${r.name || "Unknown"} <span class="meta">(${r.branch || "main"})</span></span>
-      <span class="meta">${r.changed_files ?? 0} changed · ${r.unpushed_commits ?? 0} unpushed</span>
-    `;
+
+    const infoSpan = document.createElement("span");
+    infoSpan.innerHTML = `<span class="dot ${status}"></span>${r.name || "Unknown"} <span class="meta">(${r.branch || "main"})</span>`;
+
+    const rightSpan = document.createElement("span");
+    rightSpan.style.display = "flex";
+    rightSpan.style.alignItems = "center";
+    rightSpan.style.gap = "8px";
+
+    const metaSpan = document.createElement("span");
+    metaSpan.className = "meta";
+    metaSpan.textContent = `${r.changed_files ?? 0} changed · ${r.unpushed_commits ?? 0} unpushed`;
+
+    const openBtn = document.createElement("button");
+    openBtn.className = "open-vscode-btn";
+    openBtn.title = `Open in VS Code: ${r.path}`;
+    openBtn.textContent = "Open";
+    openBtn.dataset.path = r.path || "";
+
+    rightSpan.appendChild(metaSpan);
+    rightSpan.appendChild(openBtn);
+    row.appendChild(infoSpan);
+    row.appendChild(rightSpan);
     repoListEl.appendChild(row);
   }
 }
@@ -117,14 +134,14 @@ async function updateWatchDirs(newDirs) {
   }
 }
 
-settingsBtn.addEventListener("click", () => {
-  const isHidden = settingsPanel.classList.contains("hidden");
+settingsBtn.addEventListener('click', () => {
+  const isHidden = settingsPanel.classList.contains('hidden');
   if (isHidden) {
-    settingsPanel.classList.remove("hidden");
-    settingsBtn.classList.add("active");
+    settingsPanel.classList.remove('hidden');
+    settingsBtn.classList.add('active');
   } else {
-    settingsPanel.classList.add("hidden");
-    settingsBtn.classList.remove("active");
+    settingsPanel.classList.add('hidden');
+    settingsBtn.classList.remove('active');
   }
 });
 
@@ -168,16 +185,25 @@ function renderPorts(ports) {
   if (!portListEl) return;
   portListEl.innerHTML = "";
   if (!ports || !Array.isArray(ports) || !ports.length) {
-    portListEl.innerHTML = `<div class="empty">No active listening ports</div>`;
+    portListEl.innerHTML = `<div class="empty">No port data</div>`;
     return;
   }
   for (const p of ports) {
+    const dotClass = p.in_use ? "critical" : "ok";
     const row = document.createElement("div");
     row.className = "item";
-    row.title = `PID: ${p.pid} — ${p.address}`;
+    if (p.in_use) {
+      row.title = `PID: ${p.pid ?? "?"} — ${p.process_name ?? "Unknown"}`;
+    }
+    const procLabel = p.in_use
+      ? ` <span class="meta">(${p.process_name ?? "Unknown"})</span>`
+      : "";
+    const rightLabel = p.in_use
+      ? `<span class="meta">PID ${p.pid}</span>`
+      : `<span class="meta port-free">free</span>`;
     row.innerHTML = `
-      <span><span class="dot ok"></span><strong style="color: #38bdf8;">:${p.port}</strong> <span class="meta">(${p.process_name})</span></span>
-      <span class="meta">PID ${p.pid}</span>
+      <span><span class="dot ${dotClass}"></span><strong class="port-num">:${p.port}</strong>${procLabel}</span>
+      ${rightLabel}
     `;
     portListEl.appendChild(row);
   }
@@ -186,6 +212,33 @@ function renderPorts(ports) {
 if (refreshBtn) {
   refreshBtn.addEventListener("click", refresh);
 }
+
+// VS Code open button — delegated listener on the repo list
+repoListEl.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".open-vscode-btn");
+  if (!btn) return;
+  const path = btn.dataset.path;
+  if (!path) return;
+
+  btn.disabled = true;
+  btn.textContent = "…";
+
+  try {
+    await invoke("open_in_vscode", { path });
+    btn.textContent = "✓";
+    setTimeout(() => { btn.textContent = "Open"; btn.disabled = false; }, 1500);
+  } catch (err) {
+    console.warn("[devbar] open_in_vscode failed:", err);
+    btn.textContent = "!";
+    btn.title = `VS Code CLI error: ${err}`;
+    btn.classList.add("open-vscode-btn--error");
+    setTimeout(() => {
+      btn.textContent = "Open";
+      btn.disabled = false;
+      btn.classList.remove("open-vscode-btn--error");
+    }, 3000);
+  }
+});
 
 async function refresh() {
   try {
@@ -208,36 +261,65 @@ async function refresh() {
   }
 }
 
+// ─── Theme System ───────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.body.setAttribute('data-theme', theme);
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.theme === theme);
+  });
+}
 
+async function initTheme() {
+  try {
+    const theme = await invoke('cmd_get_theme');
+    applyTheme(theme);
+  } catch (err) {
+    console.warn('[devbar] Could not load theme:', err);
+    applyTheme('dark');
+  }
 
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const theme = btn.dataset.theme;
+      applyTheme(theme);
+      try {
+        await invoke('cmd_set_theme', { theme });
+      } catch (err) {
+        console.warn('[devbar] Could not save theme:', err);
+      }
+    });
+  });
+}
 
-const autostartToggle = document.getElementById("autostart-toggle");
+// ─── Autostart ──────────────────────────────────────────────────────────────
+const autostartToggle = document.getElementById('autostart-toggle');
 
 async function initAutostart() {
   if (!autostartToggle) return;
   try {
-    const enabled = await invoke("plugin:autostart|is_enabled");
+    const enabled = await invoke('plugin:autostart|is_enabled');
     autostartToggle.checked = !!enabled;
   } catch (err) {
-    console.warn("Autostart status check failed:", err);
+    console.warn('Autostart status check failed:', err);
   }
 
-  autostartToggle.addEventListener("change", async () => {
+  autostartToggle.addEventListener('change', async () => {
     try {
       if (autostartToggle.checked) {
-        await invoke("plugin:autostart|enable");
+        await invoke('plugin:autostart|enable');
       } else {
-        await invoke("plugin:autostart|disable");
+        await invoke('plugin:autostart|disable');
       }
     } catch (err) {
-      console.error("Failed to toggle autostart:", err);
+      console.error('Failed to toggle autostart:', err);
       autostartToggle.checked = !autostartToggle.checked;
     }
   });
 }
 
-// Initial load + auto-refresh every 60s + 1s relative timestamp update
+// ─── Boot ────────────────────────────────────────────────────────────────────
 loadWatchDirs();
+initTheme();
 initAutostart();
 refresh();
 setInterval(refresh, 60_000);

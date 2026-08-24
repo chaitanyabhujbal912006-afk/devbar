@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
+    "dev:clean": "taskkill /F /IM devbar.exe /T 2>nul & tauri dev",
     "build": "tauri build",
     "tauri": "tauri"
   },

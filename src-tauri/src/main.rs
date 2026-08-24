@@ -3,16 +3,20 @@
 
 mod monitors;
 
+use monitors::deps::get_dep_versions;
 use monitors::disk::get_disk_status;
 use monitors::docker::get_docker_status;
 use monitors::git::scan_git_repos;
 use monitors::ports::get_port_status;
+use monitors::recent::get_recent_files;
+use monitors::search::search_repos;
+use tauri_plugin_shell::ShellExt;
 
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -26,6 +30,29 @@ fn get_config_path() -> Option<PathBuf> {
     let _ = fs::create_dir_all(&path);
     path.push("watch_dirs.json");
     Some(path)
+}
+
+fn get_theme_path() -> Option<PathBuf> {
+    let mut path = dirs::config_dir()?;
+    path.push("devbar");
+    let _ = fs::create_dir_all(&path);
+    path.push("theme.json");
+    Some(path)
+}
+
+fn load_theme() -> String {
+    get_theme_path()
+        .and_then(|p| fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str::<String>(&s).ok())
+        .unwrap_or_else(|| "dark".to_string())
+}
+
+fn save_theme(theme: &str) {
+    if let Some(path) = get_theme_path() {
+        if let Ok(json) = serde_json::to_string(theme) {
+            let _ = fs::write(path, json);
+        }
+    }
 }
 
 fn resolve_path(p: &str) -> String {
@@ -122,10 +149,12 @@ fn save_watch_dirs(dirs: &[String]) {
 }
 
 
-// Shared app state: watch dirs and notification state tracking.
+// Shared app state: watch dirs, notification tracking, and shutdown signal.
 pub struct AppState {
-    pub watch_dirs: Mutex<Vec<String>>,
+    pub watch_dirs:    Mutex<Vec<String>>,
     pub notified_keys: Mutex<HashSet<String>>,
+    /// Set to Some(flag) during setup(); the background thread reads it.
+    pub shutdown:      Mutex<Option<Arc<AtomicBool>>>,
 }
 
 impl AppState {
@@ -291,6 +320,55 @@ fn update_tray_icon(
     }
 }
 
+/// Opens the given path in VS Code using the `code` CLI.
+#[tauri::command]
+fn open_in_vscode(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    app.shell()
+        .command("code")
+        .args([&path])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| {
+            let msg = format!("Failed to open VS Code: {}", e);
+            eprintln!("[devbar] {}", msg);
+            msg
+        })
+}
+
+/// Full-text search across repos: file names, commits, branch names.
+#[tauri::command]
+fn cmd_search_repos(state: tauri::State<AppState>, query: String) -> Vec<monitors::search::SearchHit> {
+    let dirs = state.get_watch_dirs();
+    search_repos(&dirs, &query)
+}
+
+/// Recently touched files across all repos, ranked by commit timestamp.
+#[tauri::command]
+fn cmd_get_recent_files(state: tauri::State<AppState>) -> Vec<monitors::recent::RecentFile> {
+    let dirs = state.get_watch_dirs();
+    get_recent_files(&dirs, 5)
+}
+
+/// Cross-repo package.json dependency versions.
+#[tauri::command]
+fn cmd_get_dep_versions(state: tauri::State<AppState>) -> Vec<monitors::deps::RepoDeps> {
+    let dirs = state.get_watch_dirs();
+    get_dep_versions(&dirs)
+}
+
+/// Returns the persisted theme name ("dark" | "light" | "midnight").
+#[tauri::command]
+fn cmd_get_theme() -> String {
+    load_theme()
+}
+
+/// Saves the chosen theme to disk and returns it.
+#[tauri::command]
+fn cmd_set_theme(theme: String) -> String {
+    save_theme(&theme);
+    theme
+}
+
 fn main() {
     let watch_dirs = load_watch_dirs();
     println!("[devbar] watching folders: {:?}", watch_dirs);
@@ -307,10 +385,21 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::AppleScript, None))
         .manage(AppState {
-            watch_dirs: Mutex::new(watch_dirs),
+            watch_dirs:    Mutex::new(watch_dirs),
             notified_keys: Mutex::new(HashSet::new()),
+            shutdown:      Mutex::new(None),
         })
-        .invoke_handler(tauri::generate_handler![get_status, get_watch_dirs, set_watch_dirs])
+        .invoke_handler(tauri::generate_handler![
+            get_status,
+            get_watch_dirs,
+            set_watch_dirs,
+            open_in_vscode,
+            cmd_search_repos,
+            cmd_get_recent_files,
+            cmd_get_dep_versions,
+            cmd_get_theme,
+            cmd_set_theme,
+        ])
         .setup(|app| {
             let quit = MenuItem::with_id(app, "quit", "Quit DevBar", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&quit])?;
@@ -349,18 +438,51 @@ fn main() {
             let _tray = builder.build(app)?;
 
 
-            let handle = app.handle().clone();
-            let normal_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")).ok();
+            let handle        = app.handle().clone();
+            let normal_icon  = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")).ok();
             let warning_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon-warning.png")).ok();
 
-            std::thread::spawn(move || {
-                loop {
-                    let state = handle.state::<AppState>();
-                    update_tray_icon(&handle, &warning_icon, &normal_icon, &state);
-                    check_and_notify(&handle, &state);
-                    std::thread::sleep(std::time::Duration::from_secs(10));
-                }
-            });
+            // Shutdown flag: set to true when the app is exiting so the
+            // background thread can exit its loop instead of orphaning the process.
+            let shutdown = Arc::new(AtomicBool::new(false));
+            let shutdown_bg = Arc::clone(&shutdown);
+
+            // Store the shutdown flag in AppState so RunEvent can reach it.
+            {
+                let state = handle.state::<AppState>();
+                *state.shutdown.lock().unwrap() = Some(Arc::clone(&shutdown));
+            }
+
+            std::thread::Builder::new()
+                .name("devbar-bg".into())
+                .spawn(move || {
+                    loop {
+                        if shutdown_bg.load(Ordering::Relaxed) {
+                            break;
+                        }
+                        // Catch any panic inside git/disk helpers so the thread
+                        // doesn't die silently. AppHandle is not RefUnwindSafe,
+                        // so we must assert that ourselves.
+                        let handle_ref  = &handle;
+                        let wi_ref      = &warning_icon;
+                        let ni_ref      = &normal_icon;
+                        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            let state = handle_ref.state::<AppState>();
+                            update_tray_icon(handle_ref, wi_ref, ni_ref, &state);
+                            check_and_notify(handle_ref, &state);
+                        }));
+                        // Sleep in 1-second increments so we can respond to
+                        // the shutdown flag within ~1 second.
+                        for _ in 0..10 {
+                            if shutdown_bg.load(Ordering::Relaxed) {
+                                break;
+                            }
+                            std::thread::sleep(std::time::Duration::from_secs(1));
+                        }
+                    }
+                    println!("[devbar] background thread exiting cleanly");
+                })
+                .expect("failed to spawn background thread");
 
             // Hide the window when the user clicks away (blur) or requests close.
             if let Some(window) = app.get_webview_window("main") {
@@ -381,6 +503,25 @@ fn main() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running DevBar");
+        .build(tauri::generate_context!())
+        .unwrap_or_else(|e| {
+            eprintln!("[devbar] fatal during build: {e}");
+            std::process::exit(1);
+        })
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                // Signal the background thread to stop so the process exits cleanly.
+                // Clone the Arc out of the guard so the borrow on `state` ends here.
+                let flag: Option<Arc<AtomicBool>> = app
+                    .state::<AppState>()
+                    .shutdown
+                    .lock()
+                    .ok()
+                    .and_then(|g| g.clone());
+                if let Some(f) = flag {
+                    f.store(true, Ordering::Relaxed);
+                    println!("[devbar] shutdown signal sent to background thread");
+                }
+            }
+        });
 }
