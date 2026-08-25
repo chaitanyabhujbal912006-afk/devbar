@@ -193,3 +193,19 @@ fn get_branch(path: &Path) -> Option<String> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_search_repos_query() {
+        let dirs = vec!["C:\\projects".to_string()];
+        let hits = search_repos(&dirs, "main");
+        println!("SEARCH HITS FOR 'main': {}", hits.len());
+        for h in &hits {
+            println!("  - [{}] {} ({})", h.kind, h.label, h.repo);
+        }
+    }
+}
+
