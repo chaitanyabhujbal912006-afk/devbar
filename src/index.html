@@ -25,10 +25,25 @@
       </div>
 
       <div class="titlebar-right">
+        <button id="search-trigger-btn" class="search-btn-trigger" title="Global Search (Ctrl+K)">Ctrl+K 🔍</button>
         <button id="settings-btn" class="titlebar-btn" title="Settings">⚙</button>
         <button id="refresh-btn"  class="titlebar-btn" title="Refresh now">⟳</button>
       </div>
     </header>
+
+    <!-- ── Search Overlay Modal ── -->
+    <div id="search-modal" class="search-modal hidden">
+      <div class="search-box">
+        <div class="search-input-wrapper">
+          <span style="color: var(--accent);">🔍</span>
+          <input type="text" id="search-input" class="search-input" placeholder="Search files, commits, branches across all repos..." autocomplete="off" />
+          <span style="font-size: 10px; color: var(--text-dim);">ESC to close</span>
+        </div>
+        <div id="search-results" class="search-results">
+          <div class="empty">Type at least 2 characters to search...</div>
+        </div>
+      </div>
+    </div>
 
     <!-- ── Scrollable content area ── -->
     <div class="content">
@@ -66,6 +81,11 @@
       <!-- Monitor sections -->
       <div id="monitors-view">
 
+        <section class="block" id="resume-block">
+          <h2>Resume Work</h2>
+          <div id="resume-list" class="list"><div class="empty">Loading recent files…</div></div>
+        </section>
+
         <section class="block">
           <h2>Disk Space</h2>
           <div id="disk-list" class="list"><div class="empty">Loading disk status…</div></div>
@@ -84,6 +104,11 @@
         <section class="block">
           <h2>Containers</h2>
           <div id="container-list" class="list"><div class="empty">Checking containers…</div></div>
+        </section>
+
+        <section class="block" id="deps-block">
+          <h2>Dependencies</h2>
+          <div id="deps-list" class="deps-table-wrapper"><div class="empty">Scanning package dependencies…</div></div>
         </section>
 
       </div>
