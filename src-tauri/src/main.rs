@@ -10,7 +10,6 @@ use monitors::git::scan_git_repos;
 use monitors::ports::get_port_status;
 use monitors::recent::get_recent_files;
 use monitors::search::search_repos;
-use tauri_plugin_shell::ShellExt;
 
 use std::collections::HashSet;
 use std::fs;
@@ -320,19 +319,45 @@ fn update_tray_icon(
     }
 }
 
-/// Opens the given path in VS Code using the `code` CLI.
+/// Opens the given path in VS Code using the `code` CLI or fallback paths.
 #[tauri::command]
-fn open_in_vscode(app: tauri::AppHandle, path: String) -> Result<(), String> {
-    app.shell()
-        .command("code")
-        .args([&path])
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| {
-            let msg = format!("Failed to open VS Code: {}", e);
-            eprintln!("[devbar] {}", msg);
-            msg
-        })
+fn open_in_vscode(_app: tauri::AppHandle, path: String) -> Result<(), String> {
+    // 1. Try standard `code` command directly
+    if std::process::Command::new("code").arg(&path).spawn().is_ok() {
+        return Ok(());
+    }
+
+    // 2. On Windows, try via cmd.exe because `code` is a batch script (code.cmd)
+    #[cfg(target_os = "windows")]
+    {
+        if std::process::Command::new("cmd")
+            .args(["/C", "code", &path])
+            .spawn()
+            .is_ok()
+        {
+            return Ok(());
+        }
+
+        // 3. Try standard installation paths on Windows
+        let mut candidates = Vec::new();
+        if let Some(local) = dirs::data_local_dir() {
+            candidates.push(local.join("Programs\\Microsoft VS Code\\Code.exe"));
+            candidates.push(local.join("Programs\\Microsoft VS Code\\bin\\code.cmd"));
+        }
+        if let Ok(program_files) = std::env::var("ProgramFiles") {
+            let base = PathBuf::from(program_files);
+            candidates.push(base.join("Microsoft VS Code\\Code.exe"));
+            candidates.push(base.join("Microsoft VS Code\\bin\\code.cmd"));
+        }
+
+        for candidate in candidates {
+            if candidate.exists() && std::process::Command::new(&candidate).arg(&path).spawn().is_ok() {
+                return Ok(());
+            }
+        }
+    }
+
+    Err("VS Code (`code`) not found on PATH or standard installation locations".to_string())
 }
 
 /// Full-text search across repos: file names, commits, branch names.
