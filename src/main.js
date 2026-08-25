@@ -240,6 +240,254 @@ repoListEl.addEventListener("click", async (e) => {
   }
 });
 
+// ─── Resume Work ────────────────────────────────────────────────────────────
+const resumeListEl = document.getElementById('resume-list');
+
+async function loadRecentFiles() {
+  if (!resumeListEl) return;
+  try {
+    const files = await invoke('cmd_get_recent_files');
+    renderRecentFiles(files);
+  } catch (err) {
+    console.error('[devbar] loadRecentFiles error:', err);
+    resumeListEl.innerHTML = `<div class="empty">Could not load recent files</div>`;
+  }
+}
+
+function renderRecentFiles(files) {
+  resumeListEl.innerHTML = '';
+  if (!files || !files.length) {
+    resumeListEl.innerHTML = `<div class="empty">No recent edits found</div>`;
+    return;
+  }
+  for (const f of files) {
+    const item = document.createElement('div');
+    item.className = 'resume-item';
+    item.innerHTML = `
+      <div class="resume-left">
+        <span class="resume-repo">${f.repo}</span>
+        <span class="resume-file" title="${f.absolute_path}">${f.relative_path}</span>
+      </div>
+      <div class="resume-right">
+        <span class="resume-age">${f.age}</span>
+        <button class="open-vscode-btn" data-path="${f.absolute_path}" title="Open ${f.relative_path} in VS Code">Open</button>
+      </div>
+    `;
+    resumeListEl.appendChild(item);
+  }
+}
+
+// ─── Dependencies Dashboard ──────────────────────────────────────────────────
+const depsListEl = document.getElementById('deps-list');
+
+async function loadDeps() {
+  if (!depsListEl) return;
+  try {
+    const data = await invoke('cmd_get_dep_versions');
+    renderDeps(data);
+  } catch (err) {
+    console.error('[devbar] loadDeps error:', err);
+    depsListEl.innerHTML = `<div class="empty">Could not load dependency matrix</div>`;
+  }
+}
+
+function renderDeps(repoDeps) {
+  depsListEl.innerHTML = '';
+  if (!repoDeps || !repoDeps.length) {
+    depsListEl.innerHTML = `<div class="empty">No package.json files found in watched folders</div>`;
+    return;
+  }
+
+  // 1. Collect all package names
+  const pkgCounts = {};
+  const repos = repoDeps.map(rd => rd.repo);
+
+  repoDeps.forEach(rd => {
+    Object.keys(rd.deps || {}).forEach(pkg => {
+      pkgCounts[pkg] = (pkgCounts[pkg] || 0) + 1;
+    });
+  });
+
+  // Only show packages that appear in at least 1 repo (sorted alphabetically)
+  const pkgs = Object.keys(pkgCounts).sort();
+
+  if (!pkgs.length) {
+    depsListEl.innerHTML = `<div class="empty">No tracked dependencies found</div>`;
+    return;
+  }
+
+  // 2. Build Pivot Table HTML
+  let tableHtml = `<table class="deps-table"><thead><tr><th>Package</th>`;
+  repos.forEach(r => {
+    tableHtml += `<th title="${r}">${r.length > 9 ? r.slice(0, 8) + '…' : r}</th>`;
+  });
+  tableHtml += `</tr></thead><tbody>`;
+
+  pkgs.forEach(pkg => {
+    // Check if versions match across repos
+    const versions = repoDeps.map(rd => rd.deps[pkg]).filter(Boolean);
+    const isUniform = new Set(versions).size <= 1;
+    const badgeClass = isUniform ? 'ver-match' : 'ver-diff';
+
+    tableHtml += `<tr><td class="deps-pkg-name">${pkg}</td>`;
+    repoDeps.forEach(rd => {
+      const ver = rd.deps[pkg];
+      if (ver) {
+        tableHtml += `<td><span class="ver-badge ${badgeClass}">${ver}</span></td>`;
+      } else {
+        tableHtml += `<td><span style="color: var(--text-dim);">-</span></td>`;
+      }
+    });
+    tableHtml += `</tr>`;
+  });
+
+  tableHtml += `</tbody></table>`;
+  depsListEl.innerHTML = tableHtml;
+}
+
+// ─── Global Search (Ctrl+K Overlay) ─────────────────────────────────────────
+const searchModal       = document.getElementById('search-modal');
+const searchInput       = document.getElementById('search-input');
+const searchResultsEl   = document.getElementById('search-results');
+const searchTriggerBtn = document.getElementById('search-trigger-btn');
+
+let searchDebounceTimer = null;
+let searchHits          = [];
+let selectedIndex       = 0;
+
+function openSearch() {
+  searchModal.classList.remove('hidden');
+  searchInput.value = '';
+  searchInput.focus();
+  searchResultsEl.innerHTML = `<div class="empty">Type at least 2 characters to search...</div>`;
+}
+
+function closeSearch() {
+  searchModal.classList.add('hidden');
+}
+
+if (searchTriggerBtn) {
+  searchTriggerBtn.addEventListener('click', openSearch);
+}
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    if (searchModal.classList.contains('hidden')) {
+      openSearch();
+    } else {
+      closeSearch();
+    }
+  } else if (e.key === 'Escape' && !searchModal.classList.contains('hidden')) {
+    closeSearch();
+  }
+});
+
+if (searchInput) {
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchDebounceTimer);
+    const q = searchInput.value.trim();
+    if (q.length < 2) {
+      searchResultsEl.innerHTML = `<div class="empty">Type at least 2 characters to search...</div>`;
+      return;
+    }
+    searchDebounceTimer = setTimeout(async () => {
+      try {
+        searchHits = await invoke('cmd_search_repos', { query: q });
+        renderSearchResults(searchHits);
+      } catch (err) {
+        console.error('[devbar] search error:', err);
+      }
+    }, 150);
+  });
+
+  searchInput.addEventListener('keydown', (e) => {
+    if (!searchHits.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedIndex = (selectedIndex + 1) % searchHits.length;
+      updateSearchSelection();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedIndex = (selectedIndex - 1 + searchHits.length) % searchHits.length;
+      updateSearchSelection();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const hit = searchHits[selectedIndex];
+      if (hit) {
+        invoke('open_in_vscode', { path: hit.open_path });
+        closeSearch();
+      }
+    }
+  });
+}
+
+function renderSearchResults(hits) {
+  searchResultsEl.innerHTML = '';
+  selectedIndex = 0;
+  if (!hits || !hits.length) {
+    searchResultsEl.innerHTML = `<div class="empty">No matching files, commits, branches, or repos found</div>`;
+    return;
+  }
+
+  hits.forEach((hit, idx) => {
+    const row = document.createElement('div');
+    row.className = `search-item ${idx === 0 ? 'selected' : ''}`;
+    row.dataset.index = idx;
+    row.innerHTML = `
+      <div class="search-item-left">
+        <span class="search-kind-badge kind-${hit.kind}">${hit.kind}</span>
+        <span class="search-item-label" title="${hit.open_path}">${hit.label}</span>
+      </div>
+      <span class="search-item-repo">${hit.repo}</span>
+    `;
+    row.addEventListener('click', () => {
+      invoke('open_in_vscode', { path: hit.open_path });
+      closeSearch();
+    });
+    searchResultsEl.appendChild(row);
+  });
+}
+
+function updateSearchSelection() {
+  const items = searchResultsEl.querySelectorAll('.search-item');
+  items.forEach((item, idx) => {
+    item.classList.toggle('selected', idx === selectedIndex);
+    if (idx === selectedIndex) {
+      item.scrollIntoView({ block: 'nearest' });
+    }
+  });
+}
+
+// Global click listener for VS Code open buttons anywhere in the document
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.open-vscode-btn');
+  if (!btn || btn.dataset.handled) return;
+  const path = btn.dataset.path;
+  if (!path) return;
+
+  btn.dataset.handled = 'true';
+  btn.disabled = true;
+  btn.textContent = '…';
+
+  try {
+    await invoke('open_in_vscode', { path });
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = 'Open'; btn.disabled = false; delete btn.dataset.handled; }, 1500);
+  } catch (err) {
+    console.warn('[devbar] open_in_vscode failed:', err);
+    btn.textContent = '!';
+    btn.title = `VS Code CLI error: ${err}`;
+    btn.classList.add('open-vscode-btn--error');
+    setTimeout(() => {
+      btn.textContent = 'Open';
+      btn.disabled = false;
+      btn.classList.remove('open-vscode-btn--error');
+      delete btn.dataset.handled;
+    }, 3000);
+  }
+});
+
 async function refresh() {
   try {
     const data = await invoke("get_status");
@@ -250,6 +498,8 @@ async function refresh() {
     renderPorts(data.ports);
     lastRefreshTime = Date.now();
     updateTimestampDisplay();
+    loadRecentFiles();
+    loadDeps();
   } catch (err) {
     const errorMsg = `<div class="empty" style="color: #f43f5e;">Error: ${err}</div>`;
     diskListEl.innerHTML = errorMsg;
@@ -324,3 +574,4 @@ initAutostart();
 refresh();
 setInterval(refresh, 60_000);
 setInterval(updateTimestampDisplay, 1000);
+
