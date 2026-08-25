@@ -447,3 +447,203 @@ footer {
 /* ─── Port Scanner ───────────────────────────────────────────────────────── */
 .port-num  { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-weight: 500; }
 .port-free { color: var(--text-dim); font-style: italic; font-family: 'JetBrains Mono', monospace; }
+
+/* ─── Search Overlay (Ctrl+K) ───────────────────────────────────────────── */
+.search-btn-trigger {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.15s;
+}
+.search-btn-trigger:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.search-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.search-box {
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 16px var(--accent-glow);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.search-input-wrapper {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  outline: none;
+}
+
+.search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 380px;
+}
+
+.search-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid transparent;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.search-item:hover, .search-item.selected {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.search-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.search-kind-badge {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+.kind-file   { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+.kind-commit { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+.kind-branch { background: rgba(234, 179, 8, 0.2);  color: #fde047; }
+.kind-repo   { background: rgba(34, 197, 94, 0.2);  color: #4ade80; }
+
+.search-item-label {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-item-repo {
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ─── Resume Section ─────────────────────────────────────────────────────── */
+.resume-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+.resume-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+.resume-repo {
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 10px;
+}
+.resume-file {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.resume-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.resume-age {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ─── Cross-Repo Dependencies Dashboard Table ───────────────────────────── */
+.deps-table-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.deps-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.deps-table th, .deps-table td {
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.deps-table th {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.deps-pkg-name {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.ver-badge {
+  padding: 1px 4px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.ver-match { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+.ver-diff  { background: rgba(234, 179, 8, 0.15); color: #fde047; }
+
