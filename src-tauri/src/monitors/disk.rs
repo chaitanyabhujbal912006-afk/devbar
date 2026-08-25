@@ -44,3 +44,24 @@ pub fn get_disk_status() -> Vec<DiskInfo> {
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_disk_status_returns_mounted_drives() {
+        let disks = get_disk_status();
+        println!("DISKS FOUND: {}", disks.len());
+        for d in &disks {
+            println!(
+                "  - Drive [{}] mounted at {}: {:.1} GB free / {:.1} GB total ({:.1}%) -> {}",
+                d.name, d.mount_point, d.free_gb, d.total_gb, d.percent_used, d.status
+            );
+            assert!(d.total_gb >= 0.0);
+            assert!(d.free_gb >= 0.0);
+            assert!(["ok", "warn", "critical"].contains(&d.status.as_str()));
+        }
+    }
+}
+
