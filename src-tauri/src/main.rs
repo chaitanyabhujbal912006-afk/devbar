@@ -491,11 +491,14 @@ fn main() {
                         let handle_ref  = &handle;
                         let wi_ref      = &warning_icon;
                         let ni_ref      = &normal_icon;
-                        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        let panic_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                             let state = handle_ref.state::<AppState>();
                             update_tray_icon(handle_ref, wi_ref, ni_ref, &state);
                             check_and_notify(handle_ref, &state);
                         }));
+                        if let Err(err) = panic_res {
+                            eprintln!("[devbar] background monitor panic caught safely: {:?}", err);
+                        }
                         // Sleep in 1-second increments so we can respond to
                         // the shutdown flag within ~1 second.
                         for _ in 0..10 {
