@@ -142,3 +142,18 @@ fn collect_repo_paths(dirs: &[String]) -> Vec<(String, String)> {
     }
     repos
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_dep_versions() {
+        let dirs = vec!["C:\\projects".to_string()];
+        let deps = get_dep_versions(&dirs);
+        println!("FOUND DEPS FOR REPOS: {}", deps.len());
+        for d in &deps {
+            println!("  - Repo: {} with {} packages", d.repo, d.deps.len());
+        }
+    }
+}
