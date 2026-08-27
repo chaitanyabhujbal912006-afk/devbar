@@ -54,6 +54,30 @@ fn save_watched_ports(ports: &[u16]) {
     }
 }
 
+fn get_editor_config_path() -> Option<PathBuf> {
+    let mut path = dirs::config_dir()?;
+    path.push("devbar");
+    let _ = fs::create_dir_all(&path);
+    path.push("editor.json");
+    Some(path)
+}
+
+/// Returns the persisted editor CLI command, defaulting to "code".
+fn load_editor() -> String {
+    get_editor_config_path()
+        .and_then(|p| fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str::<String>(&s).ok())
+        .unwrap_or_else(|| "code".to_string())
+}
+
+fn save_editor(editor: &str) {
+    if let Some(path) = get_editor_config_path() {
+        if let Ok(json) = serde_json::to_string(editor) {
+            let _ = fs::write(path, json);
+        }
+    }
+}
+
 fn get_theme_path() -> Option<PathBuf> {
     let mut path = dirs::config_dir()?;
     path.push("devbar");
@@ -362,45 +386,69 @@ fn update_tray_icon(
     }
 }
 
-/// Opens the given path in VS Code using the `code` CLI or fallback paths.
+/// Opens the given path in the user's preferred editor (default: VS Code).
+/// Editor is configured via the Settings panel and persisted in editor.json.
 #[tauri::command]
 fn open_in_vscode(_app: tauri::AppHandle, path: String) -> Result<(), String> {
-    // 1. Try standard `code` command directly
-    if std::process::Command::new("code").arg(&path).spawn().is_ok() {
+    let editor = load_editor();
+    open_in_editor(&editor, &path)
+}
+
+/// Opens `path` in the editor named by `cli` (e.g. "code", "cursor", "zed").
+fn open_in_editor(cli: &str, path: &str) -> Result<(), String> {
+    // 1. Try the CLI directly (works on Unix and when the CLI is on PATH on Windows)
+    if std::process::Command::new(cli).arg(path).spawn().is_ok() {
         return Ok(());
     }
 
-    // 2. On Windows, try via cmd.exe because `code` is a batch script (code.cmd)
+    // 2. On Windows, batch scripts (.cmd) must be launched via cmd.exe
     #[cfg(target_os = "windows")]
     {
         if std::process::Command::new("cmd")
-            .args(["/C", "code", &path])
+            .args(["/C", cli, path])
             .spawn()
             .is_ok()
         {
             return Ok(());
         }
 
-        // 3. Try standard installation paths on Windows
-        let mut candidates = Vec::new();
-        if let Some(local) = dirs::data_local_dir() {
-            candidates.push(local.join("Programs\\Microsoft VS Code\\Code.exe"));
-            candidates.push(local.join("Programs\\Microsoft VS Code\\bin\\code.cmd"));
-        }
-        if let Ok(program_files) = std::env::var("ProgramFiles") {
-            let base = PathBuf::from(program_files);
-            candidates.push(base.join("Microsoft VS Code\\Code.exe"));
-            candidates.push(base.join("Microsoft VS Code\\bin\\code.cmd"));
-        }
-
-        for candidate in candidates {
-            if candidate.exists() && std::process::Command::new(&candidate).arg(&path).spawn().is_ok() {
-                return Ok(());
+        // 3. Try well-known installation paths for VS Code and Cursor
+        let known: &[(&str, &[&str])] = &[
+            ("code",   &["Programs\\Microsoft VS Code\\Code.exe",
+                         "Programs\\Microsoft VS Code\\bin\\code.cmd"]),
+            ("cursor", &["Programs\\Cursor\\Cursor.exe",
+                         "Programs\\cursor\\cursor.cmd"]),
+            ("zed",    &["Programs\\Zed\\Zed.exe"]),
+        ];
+        for (name, suffixes) in known {
+            if *name != cli { continue; }
+            if let Some(local) = dirs::data_local_dir() {
+                for suffix in *suffixes {
+                    let candidate = local.join(suffix);
+                    if candidate.exists()
+                        && std::process::Command::new(&candidate).arg(path).spawn().is_ok()
+                    {
+                        return Ok(());
+                    }
+                }
             }
         }
     }
 
-    Err("VS Code (`code`) not found on PATH or standard installation locations".to_string())
+    Err(format!("Editor `{}` not found on PATH or standard installation locations", cli))
+}
+
+/// Returns the persisted editor CLI command ("code", "cursor", "zed", or custom).
+#[tauri::command]
+fn cmd_get_editor() -> String {
+    load_editor()
+}
+
+/// Saves the editor CLI command and returns it.
+#[tauri::command]
+fn cmd_set_editor(editor: String) -> String {
+    save_editor(&editor);
+    editor
 }
 
 /// Kills the process listening on the given port.
@@ -504,6 +552,8 @@ fn main() {
             cmd_get_dep_versions,
             cmd_get_theme,
             cmd_set_theme,
+            cmd_get_editor,
+            cmd_set_editor,
         ])
         .setup(|app| {
             let quit = MenuItem::with_id(app, "quit", "Quit DevBar", true, None::<&str>)?;

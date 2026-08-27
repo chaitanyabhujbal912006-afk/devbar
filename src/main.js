@@ -628,15 +628,74 @@ function initCollapsibleSections() {
   });
 }
 
+// ─── Editor Picker ──────────────────────────────────────────────────────────
+const editorCurrentEl   = document.getElementById('editor-current');
+const editorCustomForm  = document.getElementById('editor-custom-form');
+const editorCliInput    = document.getElementById('editor-cli-input');
+const editorPresetBtns  = document.querySelectorAll('.editor-preset-btn');
+
+async function initEditorPicker() {
+  if (!editorCurrentEl) return;
+  try {
+    const current = await invoke('cmd_get_editor');
+    updateEditorUI(current);
+  } catch (err) {
+    console.error('Failed to load editor setting:', err);
+  }
+
+  editorPresetBtns.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const cli = btn.dataset.cli;
+      if (!cli) return;
+      await setEditor(cli);
+    });
+  });
+
+  if (editorCustomForm) {
+    editorCustomForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const val = editorCliInput.value.trim();
+      if (val) {
+        await setEditor(val);
+        editorCliInput.value = '';
+      }
+    });
+  }
+}
+
+async function setEditor(cli) {
+  try {
+    const updated = await invoke('cmd_set_editor', { editor: cli });
+    updateEditorUI(updated);
+  } catch (err) {
+    console.error('Failed to set editor:', err);
+  }
+}
+
+function updateEditorUI(cli) {
+  if (editorCurrentEl) {
+    editorCurrentEl.textContent = `Current: ${cli}`;
+  }
+  editorPresetBtns.forEach(btn => {
+    if (btn.dataset.cli === cli) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
 // ─── Boot ────────────────────────────────────────────────────────────────────
 loadWatchDirs();
 loadWatchedPorts();
 initTheme();
 initAutostart();
 initCollapsibleSections();
+initEditorPicker();
 refresh();
 setInterval(refresh, 60_000);
 setInterval(updateTimestampDisplay, 1000);
+
 
 
 // ─── Watched Ports ──────────────────────────────────────────────────────────

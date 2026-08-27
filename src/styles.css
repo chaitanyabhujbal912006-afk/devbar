@@ -705,3 +705,26 @@ footer {
 }
 .kill-port-btn:disabled { opacity: 0.5; cursor: wait; }
 .kill-port-btn--error   { background: rgba(239, 68, 68, 0.35); color: #fca5a5; }
+
+/* ─── Editor Presets ──────────────────────────────────────────────────────── */
+.editor-preset-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 5px;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.editor-preset-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.editor-preset-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+

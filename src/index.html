@@ -79,6 +79,21 @@
         </div>
 
         <div class="settings-section">
+          <div class="settings-header"><h2>Editor</h2></div>
+          <div class="theme-selector" id="editor-presets">
+            <button class="editor-preset-btn" data-cli="code"   id="editor-vscode">VS Code</button>
+            <button class="editor-preset-btn" data-cli="cursor" id="editor-cursor">Cursor</button>
+            <button class="editor-preset-btn" data-cli="zed"    id="editor-zed">Zed</button>
+          </div>
+          <form id="editor-custom-form" class="add-dir-form" style="margin-top:6px;">
+            <input type="text" id="editor-cli-input" placeholder="Custom CLI, e.g. nvim" />
+            <button type="submit" id="editor-set-btn">Set</button>
+          </form>
+          <div id="editor-current" class="meta" style="margin-top:4px;">Loading…</div>
+        </div>
+
+
+        <div class="settings-section">
           <div class="setting-toggle-row">
             <label for="autostart-toggle">Launch at login</label>
             <input type="checkbox" id="autostart-toggle" />
