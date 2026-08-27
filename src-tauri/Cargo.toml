@@ -21,6 +21,7 @@ walkdir = "2"
 shellexpand = "3"
 dirs = "6"
 wait-timeout = "0.2"
+toml = "0.8"
 
 
 [[bin]]

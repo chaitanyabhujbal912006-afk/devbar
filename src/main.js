@@ -291,10 +291,12 @@ async function loadDeps() {
   }
 }
 
+const LANG_ICONS = { js: '🟨', rust: '🦀', python: '🐍', go: '🐹' };
+
 function renderDeps(repoDeps) {
   depsListEl.innerHTML = '';
   if (!repoDeps || !repoDeps.length) {
-    depsListEl.innerHTML = `<div class="empty">No package.json files found in watched folders</div>`;
+    depsListEl.innerHTML = `<div class="empty">No package.json, Cargo.toml, pyproject.toml, or go.mod found in watched folders</div>`;
     return;
   }
 
@@ -308,7 +310,6 @@ function renderDeps(repoDeps) {
     });
   });
 
-  // Only show packages that appear in at least 1 repo (sorted alphabetically)
   const pkgs = Object.keys(pkgCounts).sort();
 
   if (!pkgs.length) {
@@ -318,13 +319,13 @@ function renderDeps(repoDeps) {
 
   // 2. Build Pivot Table HTML
   let tableHtml = `<table class="deps-table"><thead><tr><th>Package</th>`;
-  repos.forEach(r => {
-    tableHtml += `<th title="${r}">${r.length > 9 ? r.slice(0, 8) + '…' : r}</th>`;
+  repoDeps.forEach(rd => {
+    const icon = LANG_ICONS[rd.lang] || '📦';
+    tableHtml += `<th title="${rd.repo} (${rd.lang})">${icon} ${rd.repo.length > 7 ? rd.repo.slice(0, 6) + '…' : rd.repo}</th>`;
   });
   tableHtml += `</tr></thead><tbody>`;
 
   pkgs.forEach(pkg => {
-    // Check if versions match across repos
     const versions = repoDeps.map(rd => rd.deps[pkg]).filter(Boolean);
     const isUniform = new Set(versions).size <= 1;
     const badgeClass = isUniform ? 'ver-match' : 'ver-diff';
@@ -344,6 +345,7 @@ function renderDeps(repoDeps) {
   tableHtml += `</tbody></table>`;
   depsListEl.innerHTML = tableHtml;
 }
+
 
 // ─── Global Search (Ctrl+K Overlay) ─────────────────────────────────────────
 const searchModal       = document.getElementById('search-modal');
