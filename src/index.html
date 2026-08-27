@@ -9,19 +9,16 @@
   <div class="app-shell">
 
     <!-- ── Drag-region titlebar ── -->
-    <header class="titlebar">
-      <!-- Full-bar drag handle; buttons sit above it via z-index -->
-      <div class="titlebar-drag" data-tauri-drag-region></div>
-
-      <div class="titlebar-left">
+    <header class="titlebar" data-tauri-drag-region>
+      <div class="titlebar-left" data-tauri-drag-region>
         <!-- Inline SVG logo: pulse-line in a rounded square -->
-        <svg class="titlebar-logo" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none">
-          <rect width="32" height="32" rx="7" fill="#0f1117"/>
+        <svg class="titlebar-logo" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none" data-tauri-drag-region>
+          <rect width="32" height="32" rx="7" fill="#0f1117" data-tauri-drag-region/>
           <polyline
             points="3,16 8,16 10,10 12,22 14,13 16,19 18,11 20,16 29,16"
-            stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-tauri-drag-region/>
         </svg>
-        <span class="titlebar-name">DevBar</span>
+        <span class="titlebar-name" data-tauri-drag-region>DevBar</span>
       </div>
 
       <div class="titlebar-right">

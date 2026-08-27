@@ -786,6 +786,22 @@ if (quitBtn) {
   });
 }
 
+const titlebarEl = document.querySelector('.titlebar');
+if (titlebarEl) {
+  titlebarEl.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button') || e.target.closest('input')) return;
+    try {
+      if (window.__TAURI__?.window?.getCurrentWindow) {
+        window.__TAURI__.window.getCurrentWindow().startDragging();
+      } else if (window.__TAURI__?.window?.appWindow) {
+        window.__TAURI__.window.appWindow.startDragging();
+      }
+    } catch (err) {
+      console.warn('[devbar] startDragging error:', err);
+    }
+  });
+}
+
 // ─── Open With Popover Manager ─────────────────────────────────────────────
 const openMenuPopover = document.getElementById('open-menu-popover');
 const popoverCloseBtn = document.getElementById('popover-close-btn');
