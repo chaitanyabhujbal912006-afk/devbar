@@ -61,8 +61,6 @@ pub fn scan_git_repos(root_dirs: &[String]) -> Vec<RepoStatus> {
                     }
                 }
 
-                println!("[devbar] walking: {}", path.display());
-
                 // Check if this directory is a git repository
                 if path.join(".git").exists() {
                     if let Some(status) = inspect_repo(path) {
