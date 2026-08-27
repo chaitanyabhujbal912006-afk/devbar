@@ -451,6 +451,115 @@ fn cmd_set_editor(editor: String) -> String {
     editor
 }
 
+/// Opens a path using an explicitly specified editor CLI (code, cursor, zed, antigravity, etc.).
+#[tauri::command]
+fn open_with(editor: String, path: String) -> Result<(), String> {
+    open_in_editor(&editor, &path)
+}
+
+/// Opens path in the native OS File Manager (Explorer / Finder / xdg-open).
+#[tauri::command]
+fn open_in_explorer(path: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    let target = if p.is_file() {
+        p.parent().unwrap_or(p)
+    } else {
+        p
+    };
+
+    #[cfg(target_os = "windows")]
+    {
+        if p.is_file() {
+            let _ = std::process::Command::new("explorer").args(["/select,", &path]).spawn();
+        } else {
+            let _ = std::process::Command::new("explorer").arg(target).spawn();
+        }
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if p.is_file() {
+            let _ = std::process::Command::new("open").args(["-R", &path]).spawn();
+        } else {
+            let _ = std::process::Command::new("open").arg(target).spawn();
+        }
+        return Ok(());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let _ = std::process::Command::new("xdg-open").arg(target).spawn();
+        return Ok(());
+    }
+}
+
+/// Opens a terminal window rooted at the specified directory/file path.
+#[tauri::command]
+fn open_in_terminal(path: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    let target_dir = if p.is_file() {
+        p.parent().unwrap_or(p).to_string_lossy().to_string()
+    } else {
+        path.clone()
+    };
+
+    #[cfg(target_os = "windows")]
+    {
+        if std::process::Command::new("wt").args(["-d", &target_dir]).spawn().is_ok() {
+            return Ok(());
+        }
+        if std::process::Command::new("cmd")
+            .args(["/C", "start", "cmd", "/K", &format!("cd /d \"{}\"", target_dir)])
+            .spawn()
+            .is_ok()
+        {
+            return Ok(());
+        }
+        return Err("Could not launch terminal".to_string());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if std::process::Command::new("open").args(["-a", "Terminal", &target_dir]).spawn().is_ok() {
+            return Ok(());
+        }
+        return Err("Could not launch Terminal".to_string());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if std::process::Command::new("x-terminal-emulator")
+            .args(["--working-directory", &target_dir])
+            .spawn()
+            .is_ok()
+        {
+            return Ok(());
+        }
+        if std::process::Command::new("gnome-terminal")
+            .args(["--working-directory", &target_dir])
+            .spawn()
+            .is_ok()
+        {
+            return Ok(());
+        }
+        return Err("Could not launch terminal".to_string());
+    }
+}
+
+/// Hides the main DevBar window to the system tray.
+#[tauri::command]
+fn cmd_hide_window(app: tauri::AppHandle) {
+    toggle_window(&app);
+}
+
+/// Fully exits/closes the DevBar application.
+#[tauri::command]
+fn cmd_quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
+
 /// Kills the process listening on the given port.
 /// Windows: `taskkill /F /PID <pid>`
 /// Unix:    `kill -9 <pid>`
@@ -546,6 +655,11 @@ fn main() {
             get_watched_ports,
             set_watched_ports,
             open_in_vscode,
+            open_with,
+            open_in_explorer,
+            open_in_terminal,
+            cmd_hide_window,
+            cmd_quit_app,
             kill_process_on_port,
             cmd_search_repos,
             cmd_get_recent_files,

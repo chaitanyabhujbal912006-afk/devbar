@@ -610,19 +610,37 @@ footer {
 
 /* ─── Cross-Repo Dependencies Dashboard Table ───────────────────────────── */
 .deps-table-wrapper {
-  overflow-x: auto;
-  max-width: 100%;
+  width: 100%;
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  display: block;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.deps-table-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+.deps-table-wrapper::-webkit-scrollbar-track {
+  background: var(--surface-2);
+  border-radius: 3px;
+}
+.deps-table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 3px;
 }
 
 .deps-table {
   width: 100%;
+  min-width: max-content;
   border-collapse: collapse;
   font-size: 10px;
   font-family: 'JetBrains Mono', monospace;
 }
 
 .deps-table th, .deps-table td {
-  padding: 4px 6px;
+  padding: 4px 8px;
   border: 1px solid var(--border);
   text-align: left;
   white-space: nowrap;
@@ -673,18 +691,29 @@ footer {
 .block.collapsed .collapse-btn { transform: rotate(-90deg); }
 
 /* Animate collapsing */
-.block .list,
-.block .deps-table-wrapper {
+.block .list {
   overflow: hidden;
   transition: max-height 0.25s ease, opacity 0.2s ease;
   max-height: 800px;
   opacity: 1;
 }
-.block.collapsed .list,
-.block.collapsed .deps-table-wrapper {
+.block.collapsed .list {
   max-height: 0;
   opacity: 0;
   pointer-events: none;
+}
+
+.block .deps-table-wrapper {
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+  max-height: 800px;
+  opacity: 1;
+}
+.block.collapsed .deps-table-wrapper {
+  max-height: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+  padding-bottom: 0;
+  overflow: hidden !important;
 }
 
 /* ─── Kill-Port Button ────────────────────────────────────────────────────── */
@@ -727,4 +756,128 @@ footer {
   color: var(--accent);
   font-weight: 600;
 }
+
+/* ─── Window Controls in Titlebar ───────────────────────────────────────── */
+.titlebar-btn-window:hover {
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
+.titlebar-btn-close:hover {
+  background: rgba(239, 68, 68, 0.25) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+/* ─── Button Group (Open / Open With) ────────────────────────────────────── */
+.btn-group {
+  display: flex;
+  align-items: center;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.btn-group .open-vscode-btn {
+  border-radius: 0;
+  border: none;
+  border-right: 1px solid var(--border);
+}
+.btn-group .open-with-trigger {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: none;
+  font-size: 9px;
+  padding: 3px 5px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-group .open-with-trigger:hover {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* ─── Open With Popover Menu ───────────────────────────────────────────── */
+.open-menu-popover {
+  position: fixed;
+  z-index: 1000;
+  width: 220px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px var(--accent-glow);
+  border-radius: 8px;
+  padding: 6px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: popoverFadeIn 0.15s ease-out;
+}
+
+@keyframes popoverFadeIn {
+  from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 6px 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.popover-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.popover-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 11px;
+}
+.popover-close-btn:hover { color: var(--text); }
+
+.popover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.popover-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: var(--text);
+  font-size: 11px;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+  width: 100%;
+}
+.popover-item:hover {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.popover-icon {
+  font-size: 12px;
+  width: 16px;
+  text-align: center;
+}
+.popover-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
 

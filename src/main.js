@@ -57,14 +57,15 @@ function renderRepos(repos) {
     metaSpan.className = "meta";
     metaSpan.textContent = `${r.changed_files ?? 0} changed · ${r.unpushed_commits ?? 0} unpushed`;
 
-    const openBtn = document.createElement("button");
-    openBtn.className = "open-vscode-btn";
-    openBtn.title = `Open in VS Code: ${r.path}`;
-    openBtn.textContent = "Open";
-    openBtn.dataset.path = r.path || "";
+    const btnGroup = document.createElement("div");
+    btnGroup.className = "btn-group";
+    btnGroup.innerHTML = `
+      <button class="open-vscode-btn" data-path="${r.path || ''}" title="Open in default editor (${r.path})">Open</button>
+      <button class="open-with-trigger" data-path="${r.path || ''}" title="Open with…">▾</button>
+    `;
 
     rightSpan.appendChild(metaSpan);
-    rightSpan.appendChild(openBtn);
+    rightSpan.appendChild(btnGroup);
     row.appendChild(infoSpan);
     row.appendChild(rightSpan);
     repoListEl.appendChild(row);
@@ -306,7 +307,10 @@ function renderRecentFiles(files) {
       </div>
       <div class="resume-right">
         <span class="resume-age">${f.age}</span>
-        <button class="open-vscode-btn" data-path="${f.absolute_path}" title="Open ${f.relative_path} in VS Code">Open</button>
+        <div class="btn-group">
+          <button class="open-vscode-btn" data-path="${f.absolute_path}" title="Open ${f.relative_path}">Open</button>
+          <button class="open-with-trigger" data-path="${f.absolute_path}" title="Open with…">▾</button>
+        </div>
       </div>
     `;
     resumeListEl.appendChild(item);
@@ -765,3 +769,104 @@ if (addPortForm) {
     }
   });
 }
+
+// ─── Window Controls ────────────────────────────────────────────────────────
+const hideBtn = document.getElementById('hide-btn');
+const quitBtn = document.getElementById('quit-btn');
+
+if (hideBtn) {
+  hideBtn.addEventListener('click', () => {
+    invoke('cmd_hide_window');
+  });
+}
+
+if (quitBtn) {
+  quitBtn.addEventListener('click', () => {
+    invoke('cmd_quit_app');
+  });
+}
+
+// ─── Open With Popover Manager ─────────────────────────────────────────────
+const openMenuPopover = document.getElementById('open-menu-popover');
+const popoverCloseBtn = document.getElementById('popover-close-btn');
+
+let activePopoverPath = null;
+
+function showOpenMenu(path, anchorBtn) {
+  if (!openMenuPopover) return;
+  activePopoverPath = path;
+  openMenuPopover.classList.remove('hidden');
+
+  const rect = anchorBtn.getBoundingClientRect();
+  const popoverWidth = 220;
+  const popoverHeight = 250;
+
+  let left = rect.right - popoverWidth;
+  if (left < 10) left = 10;
+
+  let top = rect.bottom + 4;
+  if (top + popoverHeight > window.innerHeight) {
+    top = rect.top - popoverHeight - 4;
+  }
+  if (top < 10) top = 10;
+
+  openMenuPopover.style.left = `${left}px`;
+  openMenuPopover.style.top = `${top}px`;
+}
+
+function hideOpenMenu() {
+  if (!openMenuPopover) return;
+  openMenuPopover.classList.add('hidden');
+  activePopoverPath = null;
+}
+
+if (popoverCloseBtn) {
+  popoverCloseBtn.addEventListener('click', hideOpenMenu);
+}
+
+document.addEventListener('click', (e) => {
+  const trigger = e.target.closest('.open-with-trigger');
+  if (trigger) {
+    const path = trigger.dataset.path;
+    if (path) {
+      e.stopPropagation();
+      showOpenMenu(path, trigger);
+    }
+    return;
+  }
+
+  if (openMenuPopover && !openMenuPopover.classList.contains('hidden')) {
+    if (!e.target.closest('#open-menu-popover')) {
+      hideOpenMenu();
+    }
+  }
+});
+
+if (openMenuPopover) {
+  openMenuPopover.addEventListener('click', async (e) => {
+    const item = e.target.closest('.popover-item');
+    if (!item || !activePopoverPath) return;
+
+    const action = item.dataset.action;
+    const cli = item.dataset.cli;
+    const path = activePopoverPath;
+    hideOpenMenu();
+
+    try {
+      if (action === 'editor') {
+        if (cli === 'default') {
+          await invoke('open_in_vscode', { path });
+        } else {
+          await invoke('open_with', { editor: cli, path });
+        }
+      } else if (action === 'explorer') {
+        await invoke('open_in_explorer', { path });
+      } else if (action === 'terminal') {
+        await invoke('open_in_terminal', { path });
+      }
+    } catch (err) {
+      console.warn('[devbar] popover open action failed:', err);
+    }
+  });
+}
+
