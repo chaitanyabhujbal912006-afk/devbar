@@ -686,3 +686,22 @@ footer {
   opacity: 0;
   pointer-events: none;
 }
+
+/* ─── Kill-Port Button ────────────────────────────────────────────────────── */
+.kill-port-btn {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  border-radius: 4px;
+  font-size: 10px;
+  padding: 1px 5px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1.5;
+}
+.kill-port-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+.kill-port-btn:disabled { opacity: 0.5; cursor: wait; }
+.kill-port-btn--error   { background: rgba(239, 68, 68, 0.35); color: #fca5a5; }

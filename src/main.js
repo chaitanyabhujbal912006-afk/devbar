@@ -201,16 +201,52 @@ function renderPorts(ports) {
     const rightLabel = p.in_use
       ? `<span class="meta">PID ${p.pid}</span>`
       : `<span class="meta port-free">free</span>`;
+
+    // Kill button — only shown when port is in use and PID is known
+    const killBtn = p.in_use && p.pid
+      ? `<button class="kill-port-btn" data-pid="${p.pid}" data-port="${p.port}" title="Kill process on :${p.port}">✕</button>`
+      : '';
+
     row.innerHTML = `
       <span><span class="dot ${dotClass}"></span><strong class="port-num">:${p.port}</strong>${procLabel}</span>
-      ${rightLabel}
+      <span style="display:flex;align-items:center;gap:6px;">${rightLabel}${killBtn}</span>
     `;
     portListEl.appendChild(row);
   }
 }
 
+
 if (refreshBtn) {
   refreshBtn.addEventListener("click", refresh);
+}
+
+// Kill-port button — delegated on portListEl
+if (portListEl) {
+  portListEl.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.kill-port-btn');
+    if (!btn) return;
+    const pid = parseInt(btn.dataset.pid, 10);
+    const port = btn.dataset.port;
+    if (isNaN(pid)) return;
+
+    btn.disabled = true;
+    btn.textContent = '…';
+    try {
+      await invoke('kill_process_on_port', { pid });
+      btn.textContent = '✓';
+      setTimeout(() => refresh(), 800);
+    } catch (err) {
+      console.warn('[devbar] kill_process_on_port failed:', err);
+      btn.textContent = '!';
+      btn.title = `Kill failed: ${err}`;
+      btn.classList.add('kill-port-btn--error');
+      setTimeout(() => {
+        btn.textContent = '✕';
+        btn.disabled = false;
+        btn.classList.remove('kill-port-btn--error');
+      }, 3000);
+    }
+  });
 }
 
 // VS Code open button — delegated listener on the repo list

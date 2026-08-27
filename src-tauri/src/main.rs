@@ -403,6 +403,37 @@ fn open_in_vscode(_app: tauri::AppHandle, path: String) -> Result<(), String> {
     Err("VS Code (`code`) not found on PATH or standard installation locations".to_string())
 }
 
+/// Kills the process listening on the given port.
+/// Windows: `taskkill /F /PID <pid>`
+/// Unix:    `kill -9 <pid>`
+#[tauri::command]
+fn kill_process_on_port(pid: u32) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let status = std::process::Command::new("taskkill")
+            .args(["/F", "/PID", &pid.to_string()])
+            .status()
+            .map_err(|e| format!("Failed to run taskkill: {}", e))?;
+        if status.success() {
+            return Ok(());
+        }
+        return Err(format!("taskkill failed with exit code: {:?}", status.code()));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let status = std::process::Command::new("kill")
+            .args(["-9", &pid.to_string()])
+            .status()
+            .map_err(|e| format!("Failed to run kill: {}", e))?;
+        if status.success() {
+            return Ok(());
+        }
+        Err(format!("kill -9 failed with exit code: {:?}", status.code()))
+    }
+}
+
+
 /// Full-text search across repos: file names, commits, branch names.
 #[tauri::command]
 fn cmd_search_repos(state: tauri::State<AppState>, query: String) -> Vec<monitors::search::SearchHit> {
@@ -467,6 +498,7 @@ fn main() {
             get_watched_ports,
             set_watched_ports,
             open_in_vscode,
+            kill_process_on_port,
             cmd_search_repos,
             cmd_get_recent_files,
             cmd_get_dep_versions,
