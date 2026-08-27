@@ -1,3 +1,4 @@
+pub mod common;
 pub mod deps;
 pub mod disk;
 pub mod docker;

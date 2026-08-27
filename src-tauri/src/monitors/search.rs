@@ -1,3 +1,4 @@
+use crate::monitors::common::collect_repo_paths;
 use serde::Serialize;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
@@ -40,11 +41,8 @@ pub fn search_repos(dirs: &[String], query: &str) -> Vec<SearchHit> {
     let q = query.to_lowercase();
     let mut hits: Vec<SearchHit> = Vec::new();
 
-    // Collect all repo roots the same way the git monitor does
-    let repos = collect_repo_paths(dirs);
-
-    for (repo_name, repo_path) in &repos {
-        let path = Path::new(repo_path);
+    for (repo_name, repo_path) in collect_repo_paths(dirs) {
+        let path = Path::new(&repo_path);
 
         // 1. Repo name match
         if repo_name.to_lowercase().contains(&q) {
@@ -75,7 +73,6 @@ pub fn search_repos(dirs: &[String], query: &str) -> Vec<SearchHit> {
         cmd.args(["log", "--oneline", "-20", "--no-decorate"]).current_dir(path);
         if let Some(out) = run_cmd(cmd, Duration::from_secs(3)) {
             for line in String::from_utf8_lossy(&out.stdout).lines() {
-                // line format: "<hash> <subject>"
                 let subject = line.splitn(2, ' ').nth(1).unwrap_or("").trim();
                 if subject.to_lowercase().contains(&q) {
                     hits.push(SearchHit {
@@ -102,13 +99,11 @@ pub fn search_repos(dirs: &[String], query: &str) -> Vec<SearchHit> {
                 if rel.is_empty() {
                     continue;
                 }
-                // Match against just the filename part first (faster feel)
                 let filename = Path::new(rel)
                     .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or(rel);
                 if filename.to_lowercase().contains(&q) || rel.to_lowercase().contains(&q) {
-                    // Build absolute open path
                     let abs = format!("{}\\{}", repo_path, rel.replace('/', "\\"));
                     hits.push(SearchHit {
                         kind: "file".into(),
@@ -123,67 +118,13 @@ pub fn search_repos(dirs: &[String], query: &str) -> Vec<SearchHit> {
         }
     }
 
-    // Cap total results to keep the overlay snappy
     hits.truncate(80);
     hits
 }
 
-/// Collect (name, path) pairs for all git repos under the given dirs.
-/// Mirrors the logic in git.rs but without full inspection.
-fn collect_repo_paths(dirs: &[String]) -> Vec<(String, String)> {
-    use walkdir::WalkDir;
-    let mut repos = Vec::new();
-    let mut seen = std::collections::HashSet::new();
-
-    for root in dirs {
-        let root_path = Path::new(root);
-        if !root_path.exists() {
-            continue;
-        }
-        let walker = WalkDir::new(root_path)
-            .max_depth(4)
-            .into_iter()
-            .filter_entry(|e| {
-                let p = e.path();
-                if !p.is_dir() {
-                    return false;
-                }
-                if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
-                    if (name.starts_with('.') && name != ".")
-                        || name == "node_modules"
-                        || name == "target"
-                        || name == "dist"
-                        || name == "build"
-                        || name == "vendor"
-                    {
-                        return false;
-                    }
-                }
-                true
-            });
-
-        for entry in walker.flatten() {
-            let p = entry.path();
-            if p.join(".git").exists() {
-                let path_str = p.to_string_lossy().to_string();
-                if seen.insert(path_str.clone()) {
-                    let name = p
-                        .file_name()
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_default();
-                    repos.push((name, path_str));
-                }
-            }
-        }
-    }
-
-    repos
-}
-
 fn get_branch(path: &Path) -> Option<String> {
     let mut cmd = Command::new("git");
-    cmd.args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .current_dir(path);
+    cmd.args(["rev-parse", "--abbrev-ref", "HEAD"]).current_dir(path);
     let out = run_cmd(cmd, Duration::from_secs(2))?;
     if out.status.success() {
         let b = String::from_utf8_lossy(&out.stdout).trim().to_string();
@@ -208,4 +149,3 @@ mod tests {
         }
     }
 }
-
