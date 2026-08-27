@@ -17,6 +17,13 @@ pub struct DockerStatus {
     pub containers: Vec<ContainerInfo>,
 }
 
+impl Default for DockerStatus {
+    fn default() -> Self {
+        DockerStatus { available: false, containers: vec![] }
+    }
+}
+
+
 fn run_cmd_with_timeout(mut cmd: Command, timeout: Duration) -> Option<Output> {
     let mut child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().ok()?;
     match child.wait_timeout(timeout) {

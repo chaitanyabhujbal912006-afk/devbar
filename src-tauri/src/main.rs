@@ -167,33 +167,32 @@ impl AppState {
 
 #[tauri::command]
 fn get_status(state: tauri::State<AppState>) -> serde_json::Value {
-    println!("[devbar] get_status called");
     let dirs = state.get_watch_dirs();
 
-    println!("[devbar] get_status: checking disks...");
-    let disks = get_disk_status();
-    println!("[devbar] get_status: disk check done ({})", disks.len());
+    // Run all four monitors concurrently — each spawns a scoped thread so they
+    // overlap instead of blocking one another.
+    let (disks, repos, docker, ports) = std::thread::scope(|s| {
+        let t_disk   = s.spawn(|| get_disk_status());
+        let t_repos  = s.spawn(|| scan_git_repos(&dirs));
+        let t_docker = s.spawn(|| get_docker_status());
+        let t_ports  = s.spawn(|| get_port_status());
 
-    println!("[devbar] get_status: scanning git repos...");
-    let repos = scan_git_repos(&dirs);
-    println!("[devbar] get_status: git scan done ({})", repos.len());
+        (
+            t_disk.join().unwrap_or_default(),
+            t_repos.join().unwrap_or_default(),
+            t_docker.join().unwrap_or_default(),
+            t_ports.join().unwrap_or_default(),
+        )
+    });
 
-    println!("[devbar] get_status: checking docker status...");
-    let docker = get_docker_status();
-    println!("[devbar] get_status: docker check done (available: {})", docker.available);
-
-    println!("[devbar] get_status: checking listening ports...");
-    let ports = get_port_status();
-    println!("[devbar] get_status: port check done ({})", ports.len());
-
-    println!("[devbar] get_status: returning JSON status");
     serde_json::json!({
-        "disks": disks,
-        "repos": repos,
+        "disks":  disks,
+        "repos":  repos,
         "docker": docker,
-        "ports": ports,
+        "ports":  ports,
     })
 }
+
 
 
 
