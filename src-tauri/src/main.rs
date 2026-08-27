@@ -553,6 +553,13 @@ fn cmd_hide_window(app: tauri::AppHandle) {
     toggle_window(&app);
 }
 
+/// Triggers native window dragging for the main window.
+#[tauri::command]
+fn cmd_start_drag(window: tauri::Window) {
+    let _ = window.start_dragging();
+}
+
+
 /// Fully exits/closes the DevBar application.
 #[tauri::command]
 fn cmd_quit_app(app: tauri::AppHandle) {
@@ -659,6 +666,7 @@ fn main() {
             open_in_explorer,
             open_in_terminal,
             cmd_hide_window,
+            cmd_start_drag,
             cmd_quit_app,
             kill_process_on_port,
             cmd_search_repos,

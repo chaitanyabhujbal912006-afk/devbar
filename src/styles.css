@@ -100,6 +100,14 @@ body {
 }
 
 /* ─── Drag Region Header ─────────────────────────────────────────────────── */
+.titlebar,
+.titlebar-left,
+.titlebar-logo,
+.titlebar-name {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
 .titlebar {
   display: flex;
   align-items: center;
@@ -123,7 +131,6 @@ body {
   gap: 7px;
   position: relative;
   z-index: 1;
-  pointer-events: auto;
 }
 
 .titlebar-logo {
@@ -139,12 +146,19 @@ body {
   color: var(--text);
 }
 
+.titlebar-right,
+.titlebar-right button,
+.titlebar-btn,
+.search-btn-trigger {
+  -webkit-app-region: no-drag;
+}
+
 .titlebar-right {
   display: flex;
   gap: 4px;
   align-items: center;
   position: relative;
-  z-index: 1; /* above drag overlay so buttons are clickable */
+  z-index: 1;
 }
 
 .titlebar-btn {
