@@ -7,7 +7,7 @@ use monitors::deps::get_dep_versions;
 use monitors::disk::get_disk_status;
 use monitors::docker::get_docker_status;
 use monitors::git::scan_git_repos;
-use monitors::ports::get_port_status;
+use monitors::ports::{get_port_status_for, DEFAULT_PORTS};
 use monitors::recent::get_recent_files;
 use monitors::search::search_repos;
 
@@ -29,6 +29,29 @@ fn get_config_path() -> Option<PathBuf> {
     let _ = fs::create_dir_all(&path);
     path.push("watch_dirs.json");
     Some(path)
+}
+
+fn get_ports_config_path() -> Option<PathBuf> {
+    let mut path = dirs::config_dir()?;
+    path.push("devbar");
+    let _ = fs::create_dir_all(&path);
+    path.push("watched_ports.json");
+    Some(path)
+}
+
+fn load_watched_ports() -> Vec<u16> {
+    get_ports_config_path()
+        .and_then(|p| fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str::<Vec<u16>>(&s).ok())
+        .unwrap_or_else(|| monitors::ports::DEFAULT_PORTS.to_vec())
+}
+
+fn save_watched_ports(ports: &[u16]) {
+    if let Some(path) = get_ports_config_path() {
+        if let Ok(json) = serde_json::to_string_pretty(ports) {
+            let _ = fs::write(path, json);
+        }
+    }
 }
 
 fn get_theme_path() -> Option<PathBuf> {
@@ -148,9 +171,10 @@ fn save_watch_dirs(dirs: &[String]) {
 }
 
 
-// Shared app state: watch dirs, notification tracking, and shutdown signal.
+// Shared app state: watch dirs, watched ports, notification tracking, and shutdown signal.
 pub struct AppState {
     pub watch_dirs:    Mutex<Vec<String>>,
+    pub watched_ports: Mutex<Vec<u16>>,
     pub notified_keys: Mutex<HashSet<String>>,
     /// Set to Some(flag) during setup(); the background thread reads it.
     pub shutdown:      Mutex<Option<Arc<AtomicBool>>>,
@@ -163,11 +187,18 @@ impl AppState {
             .unwrap_or_else(|e| e.into_inner())
             .clone()
     }
+    pub fn get_watched_ports(&self) -> Vec<u16> {
+        self.watched_ports
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
 }
 
 #[tauri::command]
 fn get_status(state: tauri::State<AppState>) -> serde_json::Value {
-    let dirs = state.get_watch_dirs();
+    let dirs  = state.get_watch_dirs();
+    let watch_ports = state.get_watched_ports();
 
     // Run all four monitors concurrently — each spawns a scoped thread so they
     // overlap instead of blocking one another.
@@ -175,7 +206,7 @@ fn get_status(state: tauri::State<AppState>) -> serde_json::Value {
         let t_disk   = s.spawn(|| get_disk_status());
         let t_repos  = s.spawn(|| scan_git_repos(&dirs));
         let t_docker = s.spawn(|| get_docker_status());
-        let t_ports  = s.spawn(|| get_port_status());
+        let t_ports  = s.spawn(|| get_port_status_for(&watch_ports));
 
         (
             t_disk.join().unwrap_or_default(),
@@ -207,6 +238,19 @@ fn set_watch_dirs(state: tauri::State<AppState>, dirs: Vec<String>) -> Vec<Strin
     *watch = dirs.clone();
     save_watch_dirs(&dirs);
     dirs
+}
+
+#[tauri::command]
+fn get_watched_ports(state: tauri::State<AppState>) -> Vec<u16> {
+    state.get_watched_ports()
+}
+
+#[tauri::command]
+fn set_watched_ports(state: tauri::State<AppState>, ports: Vec<u16>) -> Vec<u16> {
+    let mut watched = state.watched_ports.lock().unwrap_or_else(|e| e.into_inner());
+    *watched = ports.clone();
+    save_watched_ports(&ports);
+    ports
 }
 
 fn toggle_window(app: &tauri::AppHandle) {
@@ -395,7 +439,9 @@ fn cmd_set_theme(theme: String) -> String {
 
 fn main() {
     let watch_dirs = load_watch_dirs();
+    let watched_ports = load_watched_ports();
     println!("[devbar] watching folders: {:?}", watch_dirs);
+    println!("[devbar] watching ports: {:?}", watched_ports);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -410,6 +456,7 @@ fn main() {
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::AppleScript, None))
         .manage(AppState {
             watch_dirs:    Mutex::new(watch_dirs),
+            watched_ports: Mutex::new(watched_ports),
             notified_keys: Mutex::new(HashSet::new()),
             shutdown:      Mutex::new(None),
         })
@@ -417,6 +464,8 @@ fn main() {
             get_status,
             get_watch_dirs,
             set_watch_dirs,
+            get_watched_ports,
+            set_watched_ports,
             open_in_vscode,
             cmd_search_repos,
             cmd_get_recent_files,

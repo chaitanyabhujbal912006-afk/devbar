@@ -569,9 +569,78 @@ async function initAutostart() {
 
 // ─── Boot ────────────────────────────────────────────────────────────────────
 loadWatchDirs();
+loadWatchedPorts();
 initTheme();
 initAutostart();
 refresh();
 setInterval(refresh, 60_000);
 setInterval(updateTimestampDisplay, 1000);
 
+
+// ─── Watched Ports ──────────────────────────────────────────────────────────
+const watchPortsListEl = document.getElementById('watch-ports-list');
+const addPortForm      = document.getElementById('add-port-form');
+const portInput        = document.getElementById('port-input');
+
+let currentWatchedPorts = [];
+
+function renderWatchedPorts(ports) {
+  currentWatchedPorts = ports;
+  watchPortsListEl.innerHTML = '';
+  if (!ports.length) {
+    watchPortsListEl.innerHTML = `<div class="empty">No ports watched</div>`;
+    return;
+  }
+  ports.forEach((port, index) => {
+    const item = document.createElement('div');
+    item.className = 'dir-item';
+    item.innerHTML = `
+      <span class="dir-path">:${port}</span>
+      <button class="remove-dir-btn" data-port-index="${index}" title="Remove port">×</button>
+    `;
+    watchPortsListEl.appendChild(item);
+  });
+}
+
+async function loadWatchedPorts() {
+  try {
+    const ports = await invoke('get_watched_ports');
+    renderWatchedPorts(ports);
+  } catch (err) {
+    console.error('Failed to load watched ports:', err);
+  }
+}
+
+async function updateWatchedPorts(newPorts) {
+  try {
+    const updated = await invoke('set_watched_ports', { ports: newPorts });
+    renderWatchedPorts(updated);
+    await refresh();
+  } catch (err) {
+    console.error('Failed to update watched ports:', err);
+  }
+}
+
+if (watchPortsListEl) {
+  watchPortsListEl.addEventListener('click', (e) => {
+    if (e.target.classList.contains('remove-dir-btn')) {
+      const idx = parseInt(e.target.dataset.portIndex, 10);
+      if (!isNaN(idx)) {
+        const next = [...currentWatchedPorts];
+        next.splice(idx, 1);
+        updateWatchedPorts(next);
+      }
+    }
+  });
+}
+
+if (addPortForm) {
+  addPortForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const val = parseInt(portInput.value.trim(), 10);
+    if (!isNaN(val) && val > 0 && val <= 65535 && !currentWatchedPorts.includes(val)) {
+      updateWatchedPorts([...currentWatchedPorts, val]);
+      portInput.value = '';
+    }
+  });
+}

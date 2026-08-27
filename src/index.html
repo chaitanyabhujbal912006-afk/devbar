@@ -61,6 +61,15 @@
         </div>
 
         <div class="settings-section">
+          <div class="settings-header"><h2>Watched Ports</h2></div>
+          <div id="watch-ports-list" class="list"><div class="empty">Loading ports…</div></div>
+          <form id="add-port-form" class="add-dir-form">
+            <input type="number" id="port-input" placeholder="e.g. 4000" min="1" max="65535" required />
+            <button type="submit" id="add-port-btn">Add</button>
+          </form>
+        </div>
+
+        <div class="settings-section">
           <div class="settings-header"><h2>Theme</h2></div>
           <div class="theme-selector">
             <button class="theme-btn" data-theme="dark"     id="theme-dark">Dark</button>

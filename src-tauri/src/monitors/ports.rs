@@ -5,8 +5,8 @@ use std::time::Duration;
 use sysinfo::{Pid, ProcessesToUpdate, System};
 use wait_timeout::ChildExt;
 
-/// The fixed set of dev ports DevBar watches.
-const WATCHED_PORTS: &[u16] = &[3000, 3001, 5173, 5174, 8000, 8080, 4200, 9000];
+/// Default dev ports DevBar watches when user hasn't customised.
+pub const DEFAULT_PORTS: &[u16] = &[3000, 3001, 5173, 5174, 8000, 8080, 4200, 9000];
 
 #[derive(Serialize, Clone)]
 pub struct PortInfo {
@@ -29,18 +29,15 @@ fn run_cmd_with_timeout(mut cmd: Command, timeout: Duration) -> Option<Output> {
 }
 
 /// Returns one PortInfo per watched port.
-/// in_use=true  → something is LISTENING on that port (red dot in UI)
-/// in_use=false → port is free (green dot in UI)
-pub fn get_port_status() -> Vec<PortInfo> {
-    // Build sysinfo system with refreshed processes for PID→name lookups.
+/// in_use=true  → something is LISTENING on that port
+/// in_use=false → port is free
+pub fn get_port_status_for(ports: &[u16]) -> Vec<PortInfo> {
     let mut sys = System::new();
     sys.refresh_processes(ProcessesToUpdate::All, true);
 
-    // Parse netstat to find which ports are LISTENING and who owns them.
-    // HashMap<port, (pid, process_name)>
-    let listening = parse_listening_ports(&sys);
+    let listening = parse_listening_ports(&sys, ports);
 
-    WATCHED_PORTS
+    ports
         .iter()
         .map(|&port| {
             if let Some((pid, name)) = listening.get(&port) {
@@ -51,20 +48,20 @@ pub fn get_port_status() -> Vec<PortInfo> {
                     pid: Some(*pid),
                 }
             } else {
-                PortInfo {
-                    port,
-                    in_use: false,
-                    process_name: None,
-                    pid: None,
-                }
+                PortInfo { port, in_use: false, process_name: None, pid: None }
             }
         })
         .collect()
 }
 
+/// Convenience wrapper using the default port list.
+pub fn get_port_status() -> Vec<PortInfo> {
+    get_port_status_for(DEFAULT_PORTS)
+}
+
 /// Runs `netstat -ano -p tcp` and returns a map of port → (pid, process_name)
 /// for every local address that is in LISTENING state.
-fn parse_listening_ports(sys: &System) -> HashMap<u16, (u32, String)> {
+fn parse_listening_ports(sys: &System, watch: &[u16]) -> HashMap<u16, (u32, String)> {
     let mut map = HashMap::new();
 
     let mut cmd = Command::new("netstat");
@@ -83,9 +80,6 @@ fn parse_listening_ports(sys: &System) -> HashMap<u16, (u32, String)> {
             continue;
         }
 
-        // netstat -ano output format (Windows):
-        //   TCP  0.0.0.0:3000   0.0.0.0:0   LISTENING   1234
-        //   TCP  [::]:3000      [::]:0       LISTENING   1234
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() < 5 {
             continue;
@@ -95,8 +89,7 @@ fn parse_listening_ports(sys: &System) -> HashMap<u16, (u32, String)> {
         let pid_str = parts[parts.len() - 1];
 
         if let (Some(port), Ok(pid)) = (parse_port(local_addr), pid_str.parse::<u32>()) {
-            // Only record ports in our watch list to keep the map small.
-            if WATCHED_PORTS.contains(&port) {
+            if watch.contains(&port) {
                 map.entry(port).or_insert_with(|| {
                     let name = get_process_name(sys, pid);
                     (pid, name)
@@ -109,7 +102,6 @@ fn parse_listening_ports(sys: &System) -> HashMap<u16, (u32, String)> {
 }
 
 fn parse_port(addr: &str) -> Option<u16> {
-    // Handles both "0.0.0.0:3000" and "[::]:3000" (IPv6 bracket notation)
     addr.rfind(':').and_then(|pos| addr[pos + 1..].parse::<u16>().ok())
 }
 
@@ -117,7 +109,6 @@ fn get_process_name(sys: &System, pid: u32) -> String {
     if let Some(proc_) = sys.process(Pid::from(pid as usize)) {
         proc_.name().to_string_lossy().to_string()
     } else {
-        // Fallback: try tasklist if sysinfo missed it (e.g. elevated processes)
         tasklist_name(pid).unwrap_or_else(|| "Unknown".to_string())
     }
 }
@@ -127,7 +118,6 @@ fn tasklist_name(pid: u32) -> Option<String> {
     cmd.args(["/FI", &format!("PID eq {}", pid), "/NH", "/FO", "CSV"]);
     let out = run_cmd_with_timeout(cmd, Duration::from_secs(2))?;
     let text = String::from_utf8_lossy(&out.stdout);
-    // CSV line: "process.exe","1234","Console","1","12,345 K"
     for line in text.lines() {
         let trimmed = line.trim().trim_matches('"');
         if !trimmed.is_empty() && !trimmed.starts_with("INFO:") {
@@ -146,9 +136,8 @@ mod tests {
 
     #[test]
     fn test_get_port_status_returns_all_watched() {
-        let ports = get_port_status();
-        // Should always return exactly WATCHED_PORTS.len() entries
-        assert_eq!(ports.len(), WATCHED_PORTS.len());
+        let ports = get_port_status_for(DEFAULT_PORTS);
+        assert_eq!(ports.len(), DEFAULT_PORTS.len());
         println!("PORT STATUS:");
         for p in &ports {
             println!(
@@ -159,5 +148,11 @@ mod tests {
                 p.pid,
             );
         }
+    }
+
+    #[test]
+    fn test_custom_ports() {
+        let ports = get_port_status_for(&[80, 443, 22]);
+        assert_eq!(ports.len(), 3);
     }
 }
