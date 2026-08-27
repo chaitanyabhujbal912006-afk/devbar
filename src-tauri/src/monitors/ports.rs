@@ -45,7 +45,7 @@ pub fn get_port_status_for(ports: &[u16]) -> Vec<PortInfo> {
                     port,
                     in_use: true,
                     process_name: Some(name.clone()),
-                    pid: Some(*pid),
+                    pid: if *pid > 0 { Some(*pid) } else { None },
                 }
             } else {
                 PortInfo { port, in_use: false, process_name: None, pid: None }
@@ -59,8 +59,9 @@ pub fn get_port_status() -> Vec<PortInfo> {
     get_port_status_for(DEFAULT_PORTS)
 }
 
-/// Runs `netstat -ano -p tcp` and returns a map of port → (pid, process_name)
+/// Runs `netstat -ano -p tcp` (Windows) and returns a map of port → (pid, process_name)
 /// for every local address that is in LISTENING state.
+#[cfg(target_os = "windows")]
 fn parse_listening_ports(sys: &System, watch: &[u16]) -> HashMap<u16, (u32, String)> {
     let mut map = HashMap::new();
 
@@ -101,6 +102,84 @@ fn parse_listening_ports(sys: &System, watch: &[u16]) -> HashMap<u16, (u32, Stri
     map
 }
 
+/// Runs `lsof` or `ss` (macOS / Linux) and returns a map of port → (pid, process_name)
+/// for every local address that is in LISTEN state.
+#[cfg(not(target_os = "windows"))]
+fn parse_listening_ports(sys: &System, watch: &[u16]) -> HashMap<u16, (u32, String)> {
+    let mut map = HashMap::new();
+
+    // 1. Try lsof -iTCP -sTCP:LISTEN -n -P
+    let mut cmd = Command::new("lsof");
+    cmd.args(["-iTCP", "-sTCP:LISTEN", "-n", "-P"]);
+
+    if let Some(output) = run_cmd_with_timeout(cmd, Duration::from_secs(4)) {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines().skip(1) {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 9 {
+                    let name = parts[0].to_string();
+                    if let Ok(pid) = parts[1].parse::<u32>() {
+                        let name_field = parts[parts.len() - 2];
+                        if let Some(port) = parse_port(name_field) {
+                            if watch.contains(&port) {
+                                map.entry(port).or_insert((pid, name));
+                            }
+                        }
+                    }
+                }
+            }
+            if !map.is_empty() {
+                return map;
+            }
+        }
+    }
+
+    // 2. Fallback: ss -tulpn (Linux)
+    let mut cmd_ss = Command::new("ss");
+    cmd_ss.args(["-tulpn"]);
+    if let Some(output) = run_cmd_with_timeout(cmd_ss, Duration::from_secs(4)) {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines().skip(1) {
+                if !line.contains("LISTEN") { continue; }
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 5 {
+                    let local_addr = parts[4];
+                    if let Some(port) = parse_port(local_addr) {
+                        if watch.contains(&port) {
+                            let (pid, name) = parse_ss_pid_name(line).unwrap_or((0, get_process_name(sys, 0)));
+                            map.entry(port).or_insert((pid, name));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    map
+}
+
+#[cfg(not(target_os = "windows"))]
+fn parse_ss_pid_name(line: &str) -> Option<(u32, String)> {
+    if let Some(pos) = line.find("pid=") {
+        let rest = &line[pos + 4..];
+        let end = rest.find(|c: char| !c.is_numeric()).unwrap_or(rest.len());
+        let pid: u32 = rest[..end].parse().ok()?;
+
+        let proc_name = if let Some(u_pos) = line.find("users:((\"") {
+            let name_rest = &line[u_pos + 9..];
+            let name_end = name_rest.find('"').unwrap_or(name_rest.len());
+            name_rest[..name_end].to_string()
+        } else {
+            "Unknown".to_string()
+        };
+        Some((pid, proc_name))
+    } else {
+        None
+    }
+}
+
 fn parse_port(addr: &str) -> Option<u16> {
     addr.rfind(':').and_then(|pos| addr[pos + 1..].parse::<u16>().ok())
 }
@@ -109,10 +188,18 @@ fn get_process_name(sys: &System, pid: u32) -> String {
     if let Some(proc_) = sys.process(Pid::from(pid as usize)) {
         proc_.name().to_string_lossy().to_string()
     } else {
-        tasklist_name(pid).unwrap_or_else(|| "Unknown".to_string())
+        #[cfg(target_os = "windows")]
+        {
+            tasklist_name(pid).unwrap_or_else(|| "Unknown".to_string())
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            "Unknown".to_string()
+        }
     }
 }
 
+#[cfg(target_os = "windows")]
 fn tasklist_name(pid: u32) -> Option<String> {
     let mut cmd = Command::new("tasklist");
     cmd.args(["/FI", &format!("PID eq {}", pid), "/NH", "/FO", "CSV"]);
