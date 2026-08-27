@@ -91,36 +91,49 @@
       <div id="monitors-view">
 
         <section class="block" id="resume-block">
-          <h2>Resume Work</h2>
+          <h2 class="section-header" data-section="resume-block">
+            Resume Work <button class="collapse-btn" title="Collapse">▾</button>
+          </h2>
           <div id="resume-list" class="list"><div class="empty">Loading recent files…</div></div>
         </section>
 
-        <section class="block">
-          <h2>Disk Space</h2>
+        <section class="block" id="disk-block">
+          <h2 class="section-header" data-section="disk-block">
+            Disk Space <button class="collapse-btn" title="Collapse">▾</button>
+          </h2>
           <div id="disk-list" class="list"><div class="empty">Loading disk status…</div></div>
         </section>
 
-        <section class="block">
-          <h2>Git Repos</h2>
+        <section class="block" id="git-block">
+          <h2 class="section-header" data-section="git-block">
+            Git Repos <button class="collapse-btn" title="Collapse">▾</button>
+          </h2>
           <div id="repo-list" class="list"><div class="empty">Scanning git repositories…</div></div>
         </section>
 
-        <section class="block">
-          <h2>Active Ports</h2>
+        <section class="block" id="ports-block">
+          <h2 class="section-header" data-section="ports-block">
+            Active Ports <button class="collapse-btn" title="Collapse">▾</button>
+          </h2>
           <div id="port-list" class="list"><div class="empty">Scanning listening ports…</div></div>
         </section>
 
-        <section class="block">
-          <h2>Containers</h2>
+        <section class="block" id="containers-block">
+          <h2 class="section-header" data-section="containers-block">
+            Containers <button class="collapse-btn" title="Collapse">▾</button>
+          </h2>
           <div id="container-list" class="list"><div class="empty">Checking containers…</div></div>
         </section>
 
         <section class="block" id="deps-block">
-          <h2>Dependencies</h2>
+          <h2 class="section-header" data-section="deps-block">
+            Dependencies <button class="collapse-btn" title="Collapse">▾</button>
+          </h2>
           <div id="deps-list" class="deps-table-wrapper"><div class="empty">Scanning package dependencies…</div></div>
         </section>
 
       </div>
+
 
       <footer>
         <span id="last-updated">Loading…</span>

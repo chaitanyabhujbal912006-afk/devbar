@@ -567,11 +567,35 @@ async function initAutostart() {
   });
 }
 
+// ─── Collapsible Sections ────────────────────────────────────────────────────
+const COLLAPSE_KEY = 'devbar_collapsed_sections';
+
+function initCollapsibleSections() {
+  const saved = JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '[]');
+  document.querySelectorAll('.section-header').forEach(header => {
+    const sectionId = header.dataset.section;
+    const block = document.getElementById(sectionId);
+    if (!block) return;
+
+    // Restore persisted collapsed state
+    if (saved.includes(sectionId)) block.classList.add('collapsed');
+
+    header.addEventListener('click', () => {
+      block.classList.toggle('collapsed');
+      const nowCollapsed = [...document.querySelectorAll('.block.collapsed')]
+        .map(b => b.id)
+        .filter(Boolean);
+      localStorage.setItem(COLLAPSE_KEY, JSON.stringify(nowCollapsed));
+    });
+  });
+}
+
 // ─── Boot ────────────────────────────────────────────────────────────────────
 loadWatchDirs();
 loadWatchedPorts();
 initTheme();
 initAutostart();
+initCollapsibleSections();
 refresh();
 setInterval(refresh, 60_000);
 setInterval(updateTimestampDisplay, 1000);
