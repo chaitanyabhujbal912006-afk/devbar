@@ -2,6 +2,21 @@
 
 All notable changes to DevBar will be documented in this file.
 
+## [0.3.0] - 2026-08-27
+
+### Added
+- **Multi-Language Dependency Matrix** (`src-tauri/src/monitors/deps.rs`): Extended cross-repository dependency tracking to parse Rust (`Cargo.toml`), Python (`pyproject.toml`, `requirements.txt`), and Go (`go.mod`) manifests with language badge indicators.
+- **Configurable Watched Ports** (`src-tauri/src/monitors/ports.rs`): Added customizable ports list persisted to `watched_ports.json` and editable from the Settings panel.
+- **Interactive Process Kill Action**: One-click kill button on in-use ports panel using platform-native `taskkill /F /PID` (Windows) and `kill -9` (Unix) with UI status feedback.
+- **Editor Launcher Picker**: Added setting to choose default project launcher (VS Code, Cursor, Zed, or custom CLI) persisted to `editor.json`.
+- **Collapsible Monitor Panels**: Interactive toggle headers on all monitor sections with smooth CSS transition animations and `localStorage` section state persistence.
+- **Cross-Platform Port Engine**: Implemented `lsof` (macOS) and `ss` (Linux) command parsers alongside Windows `netstat`.
+
+### Performance & Refactoring
+- **Concurrent Monitor Pipeline**: Converted `get_status` Tauri handler to execute Disk, Git, Docker, and Ports checks concurrently using `std::thread::scope`, overlapping execution and eliminating blocking monitor serialization.
+- **Consolidated Repository Walker**: Created `monitors/common.rs` to host a unified `collect_repo_paths` function, eliminating 4 duplicate recursive directory walking implementations and reducing disk traversal overhead.
+- **Debug Log Cleanup**: Removed redundant stdout logging during repository walks for faster execution and cleaner console logs.
+
 ## [0.2.0] - 2026-08-25
 
 ### Added

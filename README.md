@@ -20,15 +20,19 @@ Normally you'd open a terminal and run `df -h`, `git status`, and `docker ps` in
 
 ## What it shows you
 
-Click the tray icon and a compact dark popup appears with three live sections:
+Click the tray icon and a compact popup appears with live, collapsible monitor panels:
 
 | Section | What it tracks |
 |---------|---------------|
+| 📝 **Resume Work** | Recent file edits and uncommitted files across all repos for instant context recovery |
 | 💾 **Disk Space** | Used/free space on every drive. 🟢 fine · 🟡 getting full (>75%) · 🔴 urgent (>90%) |
 | 🌿 **Git Repos** | Scans your project folders — shows uncommitted files and unpushed commits |
-| 🐳 **Containers** | Lists every Docker container and whether it's running, stopped, or restarting. Shows a friendly "unavailable" note if Docker isn't installed — no crash |
+| 🔌 **Active Ports** | Monitors configured dev ports (3000, 5173, 8000, etc.) with process names, PIDs, and one-click process termination (`taskkill`/`kill`) |
+| 🐳 **Containers** | Lists Docker containers and state (running, stopped, restarting). Graceful fallback if Docker is stopped |
+| 📦 **Dependencies** | Cross-repo package version matrix supporting JS/TS (`package.json`), Rust (`Cargo.toml`), Python (`pyproject.toml`, `requirements.txt`), and Go (`go.mod`) |
+| 🔍 **Global Search (Ctrl+K)** | Instant fuzzy search across repositories for files, commits, branches, and repo names |
 
-Click the icon again to hide the popup. Data refreshes every **60 seconds** automatically.
+Click the icon again to hide the popup. All monitor tasks execute concurrently in parallel threads every **60 seconds**.
 
 ---
 
