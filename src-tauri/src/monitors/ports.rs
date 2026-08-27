@@ -55,6 +55,7 @@ pub fn get_port_status_for(ports: &[u16]) -> Vec<PortInfo> {
 }
 
 /// Convenience wrapper using the default port list.
+#[allow(dead_code)]
 pub fn get_port_status() -> Vec<PortInfo> {
     get_port_status_for(DEFAULT_PORTS)
 }

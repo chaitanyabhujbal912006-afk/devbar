@@ -7,7 +7,7 @@ use monitors::deps::get_dep_versions;
 use monitors::disk::get_disk_status;
 use monitors::docker::get_docker_status;
 use monitors::git::scan_git_repos;
-use monitors::ports::{get_port_status_for, DEFAULT_PORTS};
+use monitors::ports::get_port_status_for;
 use monitors::recent::get_recent_files;
 use monitors::search::search_repos;
 
