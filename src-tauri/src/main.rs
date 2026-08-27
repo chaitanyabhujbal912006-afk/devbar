@@ -764,19 +764,13 @@ fn main() {
                 })
                 .expect("failed to spawn background thread");
 
-            // Hide the window when the user clicks away (blur) or requests close.
+            // Hide the window when the user requests close.
             if let Some(window) = app.get_webview_window("main") {
                 let win_clone = window.clone();
                 window.on_window_event(move |event| {
-                    match event {
-                        WindowEvent::CloseRequested { api, .. } => {
-                            api.prevent_close();
-                            let _ = win_clone.hide();
-                        }
-                        WindowEvent::Focused(false) => {
-                            let _ = win_clone.hide();
-                        }
-                        _ => {}
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = win_clone.hide();
                     }
                 });
             }
