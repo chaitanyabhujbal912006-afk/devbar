@@ -501,6 +501,105 @@ footer {
 
 .hidden { display: none !important; }
 
+/* ─── macOS Context Popovers ─────────────────────────────────────────────── */
+.open-menu-popover {
+  position: fixed;
+  z-index: 1000;
+  width: 250px;
+  max-width: 90vw;
+  background: var(--header-bg);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 1px rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 6px;
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  animation: popoverFade 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popoverFade {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 6px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.popover-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.popover-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.popover-close-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.popover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.popover-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.popover-item:hover {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.popover-item:hover .meta {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.popover-icon {
+  font-size: 13px;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.popover-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
 /* ─── Script Modal Overlay ───────────────────────────────────────────────── */
 .script-modal-overlay {
   position: fixed;

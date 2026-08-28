@@ -1057,7 +1057,7 @@ function showScriptSelectionMenu(repoPath, repoName, scripts, anchorBtn) {
     btn.className = 'popover-item';
     btn.innerHTML = `
       <span class="popover-icon">${s.is_interactive ? '🚀' : '▶'}</span>
-      <span>${s.name}</span>
+      <span style="font-weight: 500;">${s.name}</span>
       <span class="meta" style="margin-left:auto; font-size:10px;">${s.category}</span>
     `;
 
@@ -1085,13 +1085,16 @@ function showScriptSelectionMenu(repoPath, repoName, scripts, anchorBtn) {
   });
 
   const rect = anchorBtn.getBoundingClientRect();
-  const popoverWidth = 240;
+  const popoverWidth = 250;
   let left = rect.right - popoverWidth;
   if (left < 10) left = 10;
+  if (left + popoverWidth > window.innerWidth - 10) {
+    left = window.innerWidth - popoverWidth - 10;
+  }
 
-  let top = rect.bottom + 4;
-  if (top + 200 > window.innerHeight) {
-    top = rect.top - 200 - 4;
+  let top = rect.bottom + 6;
+  if (top + 220 > window.innerHeight) {
+    top = rect.top - 220 - 6;
   }
   if (top < 10) top = 10;
 
