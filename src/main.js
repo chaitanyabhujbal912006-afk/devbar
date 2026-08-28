@@ -64,7 +64,6 @@ function renderDisks(disks) {
 }
 
 function renderRepos(repos) {
-  console.log("[devbar] renderRepos called with:", repos);
   repoListEl.innerHTML = "";
   if (!repos || !Array.isArray(repos) || !repos.length) {
     repoListEl.innerHTML = `<div class="empty">No git repos found in watched folders</div>`;
@@ -72,35 +71,36 @@ function renderRepos(repos) {
   }
   for (const r of repos) {
     const status = r.dirty ? "warn" : "ok";
-    const row = document.createElement("div");
-    row.className = "item";
-    row.title = r.path || "";
+    const card = document.createElement("div");
+    card.className = "repo-card-item";
+    card.title = r.path || "";
 
-    const infoSpan = document.createElement("span");
-    infoSpan.innerHTML = `<span class="dot ${status}"></span>${r.name || "Unknown"} <span class="meta">(${r.branch || "main"})</span>`;
+    const hasChanges = (r.changed_files ?? 0) > 0 || (r.unpushed_commits ?? 0) > 0;
+    const metaText = `${r.changed_files ?? 0} changed · ${r.unpushed_commits ?? 0} unpushed`;
+    const metaClass = hasChanges ? "repo-badge badge-warn" : "repo-badge badge-ok";
 
-    const rightSpan = document.createElement("span");
-    rightSpan.style.display = "flex";
-    rightSpan.style.alignItems = "center";
-    rightSpan.style.gap = "8px";
-
-    const metaSpan = document.createElement("span");
-    metaSpan.className = "meta";
-    metaSpan.textContent = `${r.changed_files ?? 0} changed · ${r.unpushed_commits ?? 0} unpushed`;
-
-    const btnGroup = document.createElement("div");
-    btnGroup.className = "btn-group";
-    btnGroup.innerHTML = `
-      <button class="btn-script-runner" data-path="${r.path || ''}" data-name="${r.name || ''}" title="Run Quick Actions / Scripts (npm, cargo, docker, git)">⚡ Quick Actions</button>
-      <button class="open-vscode-btn" data-path="${r.path || ''}" title="Open in default editor (${r.path})">Open</button>
-      <button class="open-with-trigger" data-path="${r.path || ''}" title="Open with…">▾</button>
+    card.innerHTML = `
+      <div class="repo-row-top">
+        <div class="repo-name-box">
+          <span class="dot ${status}"></span>
+          <span class="repo-title-text">${r.name || "Unknown"}</span>
+          <span class="repo-branch-tag">${r.branch || "main"}</span>
+        </div>
+        <div class="btn-group">
+          <button class="btn-script-runner" data-path="${r.path || ''}" data-name="${r.name || ''}" title="Quick Actions / Scripts">⚡ Actions</button>
+          <div class="split-btn-group">
+            <button class="open-vscode-btn" data-path="${r.path || ''}" title="Open in default editor">Open</button>
+            <button class="open-with-trigger" data-path="${r.path || ''}" title="Open with…">▾</button>
+          </div>
+        </div>
+      </div>
+      <div class="repo-row-bottom">
+        <span class="${metaClass}">${metaText}</span>
+        <span class="repo-path-sub">${r.path || ''}</span>
+      </div>
     `;
 
-    rightSpan.appendChild(metaSpan);
-    rightSpan.appendChild(btnGroup);
-    row.appendChild(infoSpan);
-    row.appendChild(rightSpan);
-    repoListEl.appendChild(row);
+    repoListEl.appendChild(card);
   }
 }
 
