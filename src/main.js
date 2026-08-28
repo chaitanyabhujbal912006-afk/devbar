@@ -60,6 +60,7 @@ function renderRepos(repos) {
     const btnGroup = document.createElement("div");
     btnGroup.className = "btn-group";
     btnGroup.innerHTML = `
+      <button class="btn-script-runner" data-path="${r.path || ''}" data-name="${r.name || ''}" title="Run Quick Actions / Scripts (npm, cargo, docker, git)">⚡ Quick Actions</button>
       <button class="open-vscode-btn" data-path="${r.path || ''}" title="Open in default editor (${r.path})">Open</button>
       <button class="open-with-trigger" data-path="${r.path || ''}" title="Open with…">▾</button>
     `;
@@ -542,6 +543,7 @@ async function refresh() {
     updateTimestampDisplay();
     loadRecentFiles();
     loadDeps();
+    loadEnvHealth();
   } catch (err) {
     const errorMsg = `<div class="empty" style="color: #f43f5e;">Error: ${err}</div>`;
     diskListEl.innerHTML = errorMsg;
@@ -877,4 +879,156 @@ if (openMenuPopover) {
     }
   });
 }
+
+// ─── Security & .env Health ──────────────────────────────────────────────────
+const envListEl = document.getElementById('env-list');
+
+async function loadEnvHealth() {
+  if (!envListEl) return;
+  try {
+    const issues = await invoke('cmd_get_env_health');
+    renderEnvHealth(issues);
+  } catch (err) {
+    console.error('[devbar] loadEnvHealth error:', err);
+    envListEl.innerHTML = `<div class="empty">Could not scan .env health</div>`;
+  }
+}
+
+function renderEnvHealth(issues) {
+  if (!envListEl) return;
+  envListEl.innerHTML = '';
+
+  if (!issues || !issues.length) {
+    envListEl.innerHTML = `<div class="empty" style="color: #34d399;">🟢 All repos have healthy .env setup & no unignored secrets</div>`;
+    return;
+  }
+
+  issues.forEach(issue => {
+    const item = document.createElement('div');
+    item.className = 'env-issue-item';
+
+    const isMissing = issue.issue_type === 'missing_env';
+    const badgeClass = isMissing ? 'badge-missing-env' : 'badge-unignored-secret';
+    const badgeText = isMissing ? 'Missing .env' : 'Unignored Secret';
+    const btnText = isMissing ? `Copy ${issue.example_file}` : `Ignore ${issue.file_name}`;
+
+    item.innerHTML = `
+      <div class="env-issue-left">
+        <span class="env-issue-badge ${badgeClass}">${badgeText}</span>
+        <div class="env-issue-info">
+          <span class="env-issue-repo">${issue.repo_name}</span>
+          <span class="env-issue-msg">${issue.message}</span>
+        </div>
+      </div>
+      <button class="btn-quick-fix" data-type="${issue.issue_type}" data-repo="${issue.repo_path}" data-file="${issue.file_name || ''}" data-example="${issue.example_file || ''}">
+        ${btnText}
+      </button>
+    `;
+
+    const fixBtn = item.querySelector('.btn-quick-fix');
+    fixBtn.addEventListener('click', async () => {
+      fixBtn.disabled = true;
+      fixBtn.textContent = 'Fixing…';
+      try {
+        if (isMissing) {
+          await invoke('cmd_fix_missing_env', { repoPath: issue.repo_path, exampleFilename: issue.example_file });
+        } else {
+          await invoke('cmd_add_to_gitignore', { repoPath: issue.repo_path, fileToIgnore: issue.file_name });
+        }
+        await refresh();
+      } catch (err) {
+        console.error('[devbar] env fix error:', err);
+        fixBtn.textContent = 'Failed';
+        setTimeout(() => { fixBtn.disabled = false; fixBtn.textContent = btnText; }, 2000);
+      }
+    });
+
+    envListEl.appendChild(item);
+  });
+}
+
+// ─── Script Runner Modal Manager ─────────────────────────────────────────────
+const scriptModal      = document.getElementById('script-modal');
+const scriptModalTitle = document.getElementById('script-modal-title');
+const scriptLogBody    = document.getElementById('script-log-body');
+const scriptModalClose = document.getElementById('script-modal-close');
+const scriptModalDone  = document.getElementById('script-modal-done');
+const popoverTitle     = document.getElementById('popover-title');
+
+function showScriptModal(title, logContent) {
+  if (!scriptModal) return;
+  scriptModalTitle.textContent = title;
+  scriptLogBody.textContent = logContent;
+  scriptModal.classList.remove('hidden');
+}
+
+function hideScriptModal() {
+  if (!scriptModal) return;
+  scriptModal.classList.add('hidden');
+}
+
+if (scriptModalClose) scriptModalClose.addEventListener('click', hideScriptModal);
+if (scriptModalDone)  scriptModalDone.addEventListener('click', hideScriptModal);
+
+document.addEventListener('click', async (e) => {
+  const runnerBtn = e.target.closest('.btn-script-runner');
+  if (!runnerBtn) return;
+
+  const repoPath = runnerBtn.dataset.path;
+  const repoName = runnerBtn.dataset.name;
+  if (!repoPath) return;
+
+  e.stopPropagation();
+
+  try {
+    const scripts = await invoke('cmd_get_repo_scripts', { repoPath });
+    if (!scripts || !scripts.length) {
+      showScriptModal(`⚡ Quick Actions (${repoName})`, `No scripts found for ${repoName}`);
+      return;
+    }
+
+    showScriptSelectionMenu(repoPath, repoName, scripts, runnerBtn);
+  } catch (err) {
+    console.error('[devbar] get_repo_scripts error:', err);
+  }
+});
+
+function showScriptSelectionMenu(repoPath, repoName, scripts, anchorBtn) {
+  if (!openMenuPopover) return;
+
+  openMenuPopover.classList.remove('hidden');
+  if (popoverTitle) popoverTitle.textContent = `⚡ Quick Actions (${repoName})`;
+
+  const actionsDiv = openMenuPopover.querySelector('.popover-actions');
+  if (!actionsDiv) return;
+  actionsDiv.innerHTML = '';
+
+  scripts.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'popover-item';
+    btn.innerHTML = `<span class="popover-icon">▶</span> ${s.name} <span class="meta" style="margin-left:auto; font-size:10px;">${s.category}</span>`;
+
+    btn.addEventListener('click', async () => {
+      hideOpenMenu();
+      showScriptModal(`⚡ Executing ${s.name}...`, `Running "${s.command} ${s.args.join(' ')}" in ${repoName}...\n\nPlease wait up to 15s...`);
+      try {
+        const output = await invoke('cmd_run_repo_script', {
+          repoPath,
+          command: s.command,
+          args: s.args
+        });
+        showScriptModal(`✅ Finished: ${s.name}`, output);
+      } catch (err) {
+        showScriptModal(`❌ Error: ${s.name}`, err);
+      }
+    });
+
+    actionsDiv.appendChild(btn);
+  });
+
+  const rect = anchorBtn.getBoundingClientRect();
+  openMenuPopover.style.left = `${Math.max(10, rect.right - 220)}px`;
+  openMenuPopover.style.top = `${Math.max(10, rect.bottom + 4)}px`;
+}
+
 
