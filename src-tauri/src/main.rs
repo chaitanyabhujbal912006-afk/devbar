@@ -663,6 +663,28 @@ fn cmd_run_repo_script(repo_path: String, command: String, args: Vec<String>) ->
     monitors::scripts::run_repo_script(&repo_path, &command, &args)
 }
 
+/// Opens a URL in the user's default web browser.
+#[tauri::command]
+fn cmd_open_url(url: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("cmd").args(["/C", "start", "", &url]).spawn();
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open").arg(&url).spawn();
+        return Ok(());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
+        return Ok(());
+    }
+}
+
 fn main() {
     let watch_dirs = load_watch_dirs();
     let watched_ports = load_watched_ports();
@@ -712,6 +734,7 @@ fn main() {
             cmd_add_to_gitignore,
             cmd_get_repo_scripts,
             cmd_run_repo_script,
+            cmd_open_url,
         ])
         .setup(|app| {
             let quit = MenuItem::with_id(app, "quit", "Quit DevBar", true, None::<&str>)?;

@@ -226,7 +226,7 @@ function renderPorts(ports) {
     const row = document.createElement("div");
     row.className = "item";
     if (p.in_use) {
-      row.title = `PID: ${p.pid ?? "?"} — ${p.process_name ?? "Unknown"}`;
+      row.title = `Click port to open http://localhost:${p.port} (PID ${p.pid ?? "?"} — ${p.process_name ?? "Unknown"})`;
     }
     const procLabel = p.in_use
       ? ` <span class="meta">(${p.process_name ?? "Unknown"})</span>`
@@ -235,14 +235,22 @@ function renderPorts(ports) {
       ? `<span class="meta">PID ${p.pid}</span>`
       : `<span class="meta port-free">free</span>`;
 
-    // Kill button — only shown when port is in use and PID is known
+    // Open in browser button & Kill button
+    const openBtn = p.in_use
+      ? `<button class="open-url-btn" data-url="http://localhost:${p.port}" title="Open http://localhost:${p.port} in web browser">🌐 Open</button>`
+      : '';
+
     const killBtn = p.in_use && p.pid
       ? `<button class="kill-port-btn" data-pid="${p.pid}" data-port="${p.port}" title="Kill process on :${p.port}">✕</button>`
       : '';
 
+    const portNumHtml = p.in_use
+      ? `<strong class="port-num port-link" data-url="http://localhost:${p.port}" title="Click to open http://localhost:${p.port}">:${p.port}</strong>`
+      : `<strong class="port-num">:${p.port}</strong>`;
+
     row.innerHTML = `
-      <span><span class="dot ${dotClass}"></span><strong class="port-num">:${p.port}</strong>${procLabel}</span>
-      <span style="display:flex;align-items:center;gap:6px;">${rightLabel}${killBtn}</span>
+      <span><span class="dot ${dotClass}"></span>${portNumHtml}${procLabel}</span>
+      <span style="display:flex;align-items:center;gap:6px;">${rightLabel}${openBtn}${killBtn}</span>
     `;
     portListEl.appendChild(row);
   }
@@ -559,6 +567,20 @@ document.addEventListener('click', async (e) => {
       btn.classList.remove('open-vscode-btn--error');
       delete btn.dataset.handled;
     }, 3000);
+  }
+});
+
+// Global click listener for opening URLs in browser
+document.addEventListener('click', async (e) => {
+  const target = e.target.closest('.open-url-btn, .port-link');
+  if (!target) return;
+  const url = target.dataset.url;
+  if (!url) return;
+
+  try {
+    await invoke('cmd_open_url', { url });
+  } catch (err) {
+    console.warn('[devbar] cmd_open_url failed:', err);
   }
 });
 

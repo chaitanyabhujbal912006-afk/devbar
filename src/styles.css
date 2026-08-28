@@ -398,6 +398,33 @@ body {
   box-shadow: 0 0 10px rgba(191, 90, 242, 0.4);
 }
 
+.open-url-btn {
+  background: rgba(48, 209, 88, 0.12);
+  color: #30d158;
+  border: 1px solid rgba(48, 209, 88, 0.3);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.open-url-btn:hover {
+  background: #30d158;
+  color: #000;
+  border-color: #30d158;
+  box-shadow: 0 0 8px rgba(48, 209, 88, 0.4);
+}
+
+.port-link {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.port-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 /* Badges */
 .badge-missing-env {
   background: rgba(255, 214, 10, 0.15);
