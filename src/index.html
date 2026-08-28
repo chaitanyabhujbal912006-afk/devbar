@@ -171,6 +171,13 @@
           <div id="container-list" class="list"><div class="empty">Checking containers…</div></div>
         </section>
 
+        <section class="block" id="env-block">
+          <h2 class="section-header" data-section="env-block">
+            🛡️ Security & .env <button class="collapse-btn" title="Collapse">▾</button>
+          </h2>
+          <div id="env-list" class="list"><div class="empty">Scanning .env and secret health…</div></div>
+        </section>
+
         <section class="block" id="deps-block">
           <h2 class="section-header" data-section="deps-block">
             Dependencies <button class="collapse-btn" title="Collapse">▾</button>
@@ -184,6 +191,20 @@
       <footer>
         <span id="last-updated">Loading…</span>
       </footer>
+    </div>
+  </div>
+
+  <!-- ── Script Execution Output Modal ── -->
+  <div id="script-modal" class="script-modal-overlay hidden">
+    <div class="script-modal-content">
+      <div class="script-modal-header">
+        <span id="script-modal-title" class="script-modal-title">⚡ Running Script...</span>
+        <button id="script-modal-close" class="script-modal-close">✕</button>
+      </div>
+      <div id="script-log-body" class="script-log-body">Executing command...</div>
+      <div class="script-modal-footer">
+        <button id="script-modal-done" class="btn-quick-fix">Close</button>
+      </div>
     </div>
   </div>
 
