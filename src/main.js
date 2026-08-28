@@ -979,12 +979,16 @@ function renderEnvHealth(issues) {
 }
 
 // ─── Script Runner Modal Manager ─────────────────────────────────────────────
-const scriptModal      = document.getElementById('script-modal');
-const scriptModalTitle = document.getElementById('script-modal-title');
-const scriptLogBody    = document.getElementById('script-log-body');
-const scriptModalClose = document.getElementById('script-modal-close');
-const scriptModalDone  = document.getElementById('script-modal-done');
-const popoverTitle     = document.getElementById('popover-title');
+const scriptModal          = document.getElementById('script-modal');
+const scriptModalTitle     = document.getElementById('script-modal-title');
+const scriptLogBody        = document.getElementById('script-log-body');
+const scriptModalClose     = document.getElementById('script-modal-close');
+const scriptModalDone      = document.getElementById('script-modal-done');
+
+const quickActionsPopover  = document.getElementById('quick-actions-popover');
+const quickActionsTitle    = document.getElementById('quick-actions-title');
+const quickActionsList     = document.getElementById('quick-actions-list');
+const quickActionsCloseBtn = document.getElementById('quick-actions-close-btn');
 
 function showScriptModal(title, logContent) {
   if (!scriptModal) return;
@@ -1001,15 +1005,31 @@ function hideScriptModal() {
 if (scriptModalClose) scriptModalClose.addEventListener('click', hideScriptModal);
 if (scriptModalDone)  scriptModalDone.addEventListener('click', hideScriptModal);
 
+function hideQuickActionsMenu() {
+  if (quickActionsPopover) quickActionsPopover.classList.add('hidden');
+}
+
+if (quickActionsCloseBtn) {
+  quickActionsCloseBtn.addEventListener('click', hideQuickActionsMenu);
+}
+
 document.addEventListener('click', async (e) => {
   const runnerBtn = e.target.closest('.btn-script-runner');
-  if (!runnerBtn) return;
+  if (!runnerBtn) {
+    if (quickActionsPopover && !quickActionsPopover.classList.contains('hidden')) {
+      if (!e.target.closest('#quick-actions-popover')) {
+        hideQuickActionsMenu();
+      }
+    }
+    return;
+  }
 
   const repoPath = runnerBtn.dataset.path;
   const repoName = runnerBtn.dataset.name;
   if (!repoPath) return;
 
   e.stopPropagation();
+  hideOpenMenu();
 
   try {
     const scripts = await invoke('cmd_get_repo_scripts', { repoPath });
@@ -1025,23 +1045,30 @@ document.addEventListener('click', async (e) => {
 });
 
 function showScriptSelectionMenu(repoPath, repoName, scripts, anchorBtn) {
-  if (!openMenuPopover) return;
+  if (!quickActionsPopover || !quickActionsList) return;
 
-  openMenuPopover.classList.remove('hidden');
-  if (popoverTitle) popoverTitle.textContent = `⚡ Quick Actions (${repoName})`;
+  quickActionsPopover.classList.remove('hidden');
+  if (quickActionsTitle) quickActionsTitle.textContent = `⚡ Actions (${repoName})`;
 
-  const actionsDiv = openMenuPopover.querySelector('.popover-actions');
-  if (!actionsDiv) return;
-  actionsDiv.innerHTML = '';
+  quickActionsList.innerHTML = '';
 
   scripts.forEach(s => {
     const btn = document.createElement('button');
     btn.className = 'popover-item';
-    btn.innerHTML = `<span class="popover-icon">▶</span> ${s.name} <span class="meta" style="margin-left:auto; font-size:10px;">${s.category}</span>`;
+    btn.innerHTML = `
+      <span class="popover-icon">${s.is_interactive ? '🚀' : '▶'}</span>
+      <span>${s.name}</span>
+      <span class="meta" style="margin-left:auto; font-size:10px;">${s.category}</span>
+    `;
 
     btn.addEventListener('click', async () => {
-      hideOpenMenu();
-      showScriptModal(`⚡ Executing ${s.name}...`, `Running "${s.command} ${s.args.join(' ')}" in ${repoName}...\n\nPlease wait up to 15s...`);
+      hideQuickActionsMenu();
+      const actionMsg = s.is_interactive
+        ? `Launching "${s.command} ${s.args.join(' ')}" in terminal window for ${repoName}...`
+        : `Running "${s.command} ${s.args.join(' ')}" in ${repoName}...\n\nPlease wait up to 15s...`;
+
+      showScriptModal(`⚡ ${s.name}`, actionMsg);
+
       try {
         const output = await invoke('cmd_run_repo_script', {
           repoPath,
@@ -1054,12 +1081,22 @@ function showScriptSelectionMenu(repoPath, repoName, scripts, anchorBtn) {
       }
     });
 
-    actionsDiv.appendChild(btn);
+    quickActionsList.appendChild(btn);
   });
 
   const rect = anchorBtn.getBoundingClientRect();
-  openMenuPopover.style.left = `${Math.max(10, rect.right - 220)}px`;
-  openMenuPopover.style.top = `${Math.max(10, rect.bottom + 4)}px`;
+  const popoverWidth = 240;
+  let left = rect.right - popoverWidth;
+  if (left < 10) left = 10;
+
+  let top = rect.bottom + 4;
+  if (top + 200 > window.innerHeight) {
+    top = rect.top - 200 - 4;
+  }
+  if (top < 10) top = 10;
+
+  quickActionsPopover.style.left = `${left}px`;
+  quickActionsPopover.style.top = `${top}px`;
 }
 
 

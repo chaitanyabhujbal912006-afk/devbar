@@ -12,6 +12,7 @@ pub struct ScriptAction {
     pub args: Vec<String>,
     pub category: String, // "package", "rust", "docker", "git"
     pub description: String,
+    pub is_interactive: bool,
 }
 
 #[derive(Deserialize)]
@@ -35,12 +36,21 @@ pub fn get_repo_scripts(repo_path_str: &str) -> Vec<ScriptAction> {
             if let Ok(pkg) = serde_json::from_str::<PackageJson>(&content) {
                 if let Some(scripts) = pkg.scripts {
                     for (script_name, script_cmd) in scripts {
+                        let is_interactive = script_name.contains("dev")
+                            || script_name.contains("start")
+                            || script_name.contains("watch")
+                            || script_name.contains("serve")
+                            || script_cmd.contains("vite")
+                            || script_cmd.contains("next")
+                            || script_cmd.contains("tauri dev");
+
                         actions.push(ScriptAction {
                             name: format!("npm run {}", script_name),
                             command: if cfg!(windows) { "npm.cmd".to_string() } else { "npm".to_string() },
                             args: vec!["run".to_string(), script_name.clone()],
                             category: "package".to_string(),
                             description: script_cmd,
+                            is_interactive,
                         });
                     }
                 }
@@ -56,13 +66,7 @@ pub fn get_repo_scripts(repo_path_str: &str) -> Vec<ScriptAction> {
             args: vec!["run".to_string()],
             category: "rust".to_string(),
             description: "Build and run Rust project".to_string(),
-        });
-        actions.push(ScriptAction {
-            name: "cargo test".to_string(),
-            command: "cargo".to_string(),
-            args: vec!["test".to_string()],
-            category: "rust".to_string(),
-            description: "Run Rust test suite".to_string(),
+            is_interactive: true,
         });
         actions.push(ScriptAction {
             name: "cargo check".to_string(),
@@ -70,6 +74,15 @@ pub fn get_repo_scripts(repo_path_str: &str) -> Vec<ScriptAction> {
             args: vec!["check".to_string()],
             category: "rust".to_string(),
             description: "Fast compilation check".to_string(),
+            is_interactive: false,
+        });
+        actions.push(ScriptAction {
+            name: "cargo test".to_string(),
+            command: "cargo".to_string(),
+            args: vec!["test".to_string()],
+            category: "rust".to_string(),
+            description: "Run Rust test suite".to_string(),
+            is_interactive: false,
         });
     }
 
@@ -85,6 +98,7 @@ pub fn get_repo_scripts(repo_path_str: &str) -> Vec<ScriptAction> {
             args: vec!["compose".to_string(), "up".to_string(), "-d".to_string()],
             category: "docker".to_string(),
             description: "Start containers in background".to_string(),
+            is_interactive: false,
         });
         actions.push(ScriptAction {
             name: "docker compose down".to_string(),
@@ -92,6 +106,7 @@ pub fn get_repo_scripts(repo_path_str: &str) -> Vec<ScriptAction> {
             args: vec!["compose".to_string(), "down".to_string()],
             category: "docker".to_string(),
             description: "Stop and remove containers".to_string(),
+            is_interactive: false,
         });
     }
 
@@ -103,6 +118,7 @@ pub fn get_repo_scripts(repo_path_str: &str) -> Vec<ScriptAction> {
             args: vec!["pull".to_string()],
             category: "git".to_string(),
             description: "Fetch and merge remote changes".to_string(),
+            is_interactive: false,
         });
         actions.push(ScriptAction {
             name: "git fetch".to_string(),
@@ -110,17 +126,30 @@ pub fn get_repo_scripts(repo_path_str: &str) -> Vec<ScriptAction> {
             args: vec!["fetch".to_string(), "--all".to_string()],
             category: "git".to_string(),
             description: "Fetch remote refs and branches".to_string(),
+            is_interactive: false,
         });
     }
 
     actions
 }
 
-/// Executes a script/command in the given repository path with a 15-second execution timeout.
+/// Executes a script command. Interactive dev servers launch in a terminal window,
+/// while one-shot utility scripts run in background and return output logs.
 pub fn run_repo_script(repo_path_str: &str, command: &str, args: &[String]) -> Result<String, String> {
     let repo_path = Path::new(repo_path_str);
     if !repo_path.exists() {
         return Err(format!("Repository path '{}' does not exist", repo_path_str));
+    }
+
+    let full_cmd_str = format!("{} {}", command, args.join(" "));
+    let is_dev_server = full_cmd_str.contains("dev")
+        || full_cmd_str.contains("start")
+        || full_cmd_str.contains("run")
+        || full_cmd_str.contains("serve")
+        || full_cmd_str.contains("watch");
+
+    if is_dev_server {
+        return launch_in_terminal(repo_path, command, args);
     }
 
     let mut cmd = Command::new(command);
@@ -162,5 +191,51 @@ pub fn run_repo_script(repo_path_str: &str, command: &str, args: &[String]) -> R
             ))
         }
         Err(e) => Err(format!("Error waiting for command: {}", e)),
+    }
+}
+
+fn launch_in_terminal(repo_path: &Path, command: &str, args: &[String]) -> Result<String, String> {
+    let path_str = repo_path.to_string_lossy();
+    let full_cmd = format!("{} {}", command, args.join(" "));
+
+    #[cfg(target_os = "windows")]
+    {
+        // Try Windows Terminal (wt) first
+        let wt_args = ["-d", &path_str, "powershell", "-NoExit", "-Command", &full_cmd];
+        if Command::new("wt").args(wt_args).spawn().is_ok() {
+            return Ok(format!("🚀 Launched in Windows Terminal: {}", full_cmd));
+        }
+
+        // Fallback to classic cmd.exe window
+        let cmd_str = format!("cd /d \"{}\" && {}", path_str, full_cmd);
+        if Command::new("cmd").args(["/C", "start", "cmd", "/K", &cmd_str]).spawn().is_ok() {
+            return Ok(format!("🚀 Launched in Terminal window: {}", full_cmd));
+        }
+
+        Err(format!("Could not launch terminal for '{}'", full_cmd))
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let script = format!(
+            "tell application \"Terminal\" to do script \"cd '{}' && {}\"",
+            path_str, full_cmd
+        );
+        if Command::new("osascript").args(["-e", &script]).spawn().is_ok() {
+            return Ok(format!("🚀 Launched in macOS Terminal: {}", full_cmd));
+        }
+        Err(format!("Could not launch macOS Terminal for '{}'", full_cmd))
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if Command::new("x-terminal-emulator")
+            .args(["--working-directory", &path_str, "-e", &full_cmd])
+            .spawn()
+            .is_ok()
+        {
+            return Ok(format!("🚀 Launched in Terminal: {}", full_cmd));
+        }
+        Err(format!("Could not launch Linux Terminal for '{}'", full_cmd))
     }
 }
