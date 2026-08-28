@@ -632,6 +632,37 @@ fn cmd_set_theme(theme: String) -> String {
     theme
 }
 
+/// Scans repositories for missing .env files or unignored secrets.
+#[tauri::command]
+fn cmd_get_env_health(state: tauri::State<AppState>) -> Vec<monitors::env_health::EnvHealthIssue> {
+    let dirs = state.get_watch_dirs();
+    monitors::env_health::scan_env_health(&dirs)
+}
+
+/// Copies an example .env file to .env in the repository.
+#[tauri::command]
+fn cmd_fix_missing_env(repo_path: String, example_filename: String) -> Result<(), String> {
+    monitors::env_health::fix_missing_env(&repo_path, &example_filename)
+}
+
+/// Appends a secret file pattern to .gitignore.
+#[tauri::command]
+fn cmd_add_to_gitignore(repo_path: String, file_to_ignore: String) -> Result<(), String> {
+    monitors::env_health::add_to_gitignore(&repo_path, &file_to_ignore)
+}
+
+/// Auto-detects runnable scripts and quick actions for a given repository.
+#[tauri::command]
+fn cmd_get_repo_scripts(repo_path: String) -> Vec<monitors::scripts::ScriptAction> {
+    monitors::scripts::get_repo_scripts(&repo_path)
+}
+
+/// Runs a script or quick action command for a given repository.
+#[tauri::command]
+fn cmd_run_repo_script(repo_path: String, command: String, args: Vec<String>) -> Result<String, String> {
+    monitors::scripts::run_repo_script(&repo_path, &command, &args)
+}
+
 fn main() {
     let watch_dirs = load_watch_dirs();
     let watched_ports = load_watched_ports();
@@ -676,6 +707,11 @@ fn main() {
             cmd_set_theme,
             cmd_get_editor,
             cmd_set_editor,
+            cmd_get_env_health,
+            cmd_fix_missing_env,
+            cmd_add_to_gitignore,
+            cmd_get_repo_scripts,
+            cmd_run_repo_script,
         ])
         .setup(|app| {
             let quit = MenuItem::with_id(app, "quit", "Quit DevBar", true, None::<&str>)?;
