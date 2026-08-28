@@ -825,3 +825,95 @@ footer {
   max-width: 180px;
 }
 
+/* ─── Dependencies Matrix Table ─── */
+.deps-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.deps-table-wrapper::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.deps-table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--scrollbar);
+  border-radius: 999px;
+}
+
+.deps-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 11px;
+}
+
+.deps-table th,
+.deps-table td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.deps-table th {
+  background: var(--header-bg);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+}
+
+/* Sticky first column (Package Name) */
+.deps-table th:first-child,
+.deps-table td.deps-pkg-name {
+  position: sticky;
+  left: 0;
+  background: var(--header-bg);
+  z-index: 20;
+  font-weight: 600;
+  color: var(--text);
+  border-right: 1px solid var(--border);
+  min-width: 120px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.deps-table th:first-child {
+  z-index: 30;
+}
+
+.deps-table tbody tr:hover td {
+  background: var(--surface-hover);
+}
+.deps-table tbody tr:hover td.deps-pkg-name {
+  background: var(--surface-hover);
+}
+
+/* Version Badges */
+.ver-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.ver-match {
+  background: rgba(48, 209, 88, 0.12);
+  color: #30d158;
+}
+
+.ver-diff {
+  background: rgba(255, 214, 10, 0.15);
+  color: #ffd60a;
+}
+
