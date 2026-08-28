@@ -786,10 +786,11 @@ fn main() {
             // Store the shutdown flag in AppState so RunEvent can reach it.
             {
                 let state = handle.state::<AppState>();
-                *state.shutdown.lock().unwrap() = Some(Arc::clone(&shutdown));
+                let mut guard = state.shutdown.lock().unwrap_or_else(|e| e.into_inner());
+                *guard = Some(Arc::clone(&shutdown));
             }
 
-            std::thread::Builder::new()
+            let _ = std::thread::Builder::new()
                 .name("devbar-bg".into())
                 .spawn(move || {
                     loop {
@@ -820,8 +821,7 @@ fn main() {
                         }
                     }
                     println!("[devbar] background thread exiting cleanly");
-                })
-                .expect("failed to spawn background thread");
+                });
 
             // Hide the window when the user requests close.
             if let Some(window) = app.get_webview_window("main") {
