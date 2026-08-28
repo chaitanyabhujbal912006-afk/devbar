@@ -27,6 +27,8 @@ Click the tray icon and a compact popup appears with live, collapsible monitor p
 | 📝 **Resume Work** | Recent file edits and uncommitted files across all repos for instant context recovery |
 | 💾 **Disk Space** | Used/free space on every drive. 🟢 fine · 🟡 getting full (>75%) · 🔴 urgent (>90%) |
 | 🌿 **Git Repos** | Scans your project folders — shows uncommitted files and unpushed commits |
+| 🛡️ **Security & .env** | Detects missing `.env` files and un-ignored secret files (`.env`, `.pem`, `id_rsa`, `credentials.json`) with 1-click quick-fix buttons |
+| ⚡ **Quick Actions** | Auto-detects and runs repo scripts (`npm run dev`, `cargo run`, `docker compose up`, `git pull`) directly from the tray with live output drawer |
 | 🔌 **Active Ports** | Monitors configured dev ports (3000, 5173, 8000, etc.) with process names, PIDs, and one-click process termination (`taskkill`/`kill`) |
 | 🐳 **Containers** | Lists Docker containers and state (running, stopped, restarting). Graceful fallback if Docker is stopped |
 | 📦 **Dependencies** | Cross-repo package version matrix supporting JS/TS (`package.json`), Rust (`Cargo.toml`), Python (`pyproject.toml`, `requirements.txt`), and Go (`go.mod`) |
