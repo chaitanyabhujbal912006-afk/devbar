@@ -11,24 +11,39 @@
     <!-- ── Drag-region titlebar ── -->
     <header class="titlebar" data-tauri-drag-region>
       <div class="titlebar-left" data-tauri-drag-region>
-        <!-- Inline SVG logo: pulse-line in a rounded square -->
-        <svg class="titlebar-logo" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none" data-tauri-drag-region>
-          <rect width="32" height="32" rx="7" fill="#0f1117" data-tauri-drag-region/>
-          <polyline
-            points="3,16 8,16 10,10 12,22 14,13 16,19 18,11 20,16 29,16"
-            stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-tauri-drag-region/>
-        </svg>
-        <span class="titlebar-name" data-tauri-drag-region>DevBar</span>
+        <!-- macOS Traffic Light Window Controls -->
+        <div class="mac-traffic-lights" data-tauri-drag-region>
+          <button id="quit-btn" class="mac-light red" title="Close DevBar"></button>
+          <button id="hide-btn" class="mac-light yellow" title="Minimize"></button>
+          <button id="settings-btn" class="mac-light green" title="Settings"></button>
+        </div>
+        <div class="titlebar-brand" data-tauri-drag-region>
+          <svg class="titlebar-logo" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none" data-tauri-drag-region>
+            <rect width="32" height="32" rx="8" fill="#1c1c1e" data-tauri-drag-region/>
+            <polyline
+              points="3,16 8,16 10,10 12,22 14,13 16,19 18,11 20,16 29,16"
+              stroke="#0a84ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" data-tauri-drag-region/>
+          </svg>
+          <span class="titlebar-name" data-tauri-drag-region>DevBar</span>
+        </div>
       </div>
 
       <div class="titlebar-right">
-        <button id="search-trigger-btn" class="search-btn-trigger" title="Global Search (Ctrl+K)">Ctrl+K 🔍</button>
-        <button id="refresh-btn"  class="titlebar-btn" title="Refresh now">⟳</button>
-        <button id="settings-btn" class="titlebar-btn" title="Settings">⚙</button>
-        <button id="hide-btn"     class="titlebar-btn titlebar-btn-window" title="Minimize to Tray (Hide)">–</button>
-        <button id="quit-btn"     class="titlebar-btn titlebar-btn-close" title="Close DevBar">✕</button>
+        <button id="search-trigger-btn" class="search-btn-trigger" title="Global Search (Ctrl+K)">🔍 <kbd>⌘K</kbd></button>
+        <button id="refresh-btn" class="titlebar-btn" title="Refresh now">⟳</button>
       </div>
     </header>
+
+    <!-- ── macOS Segmented Tab Navigation ── -->
+    <nav class="mac-tabbar" data-tauri-drag-region>
+      <div class="segmented-control">
+        <button class="mac-tab-btn active" data-tab="all">Overview</button>
+        <button class="mac-tab-btn" data-tab="repos">Repos</button>
+        <button class="mac-tab-btn" data-tab="security">Security</button>
+        <button class="mac-tab-btn" data-tab="services">Services</button>
+        <button class="mac-tab-btn" data-tab="deps">Dependencies</button>
+      </div>
+    </nav>
 
     <!-- ── Open With Popover Menu ── -->
     <div id="open-menu-popover" class="open-menu-popover hidden">

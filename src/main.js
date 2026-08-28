@@ -14,6 +14,37 @@ const { invoke } = window.__TAURI__.core;
 
 let currentWatchDirs = [];
 
+// ─── macOS Segmented Tab Navigation ──────────────────────────────────────
+const macTabBtns = document.querySelectorAll('.mac-tab-btn');
+const blockTabMap = {
+  'resume-block': ['all', 'repos'],
+  'git-block': ['all', 'repos'],
+  'env-block': ['all', 'security'],
+  'ports-block': ['all', 'services'],
+  'containers-block': ['all', 'services'],
+  'disk-block': ['all', 'services'],
+  'deps-block': ['all', 'deps'],
+};
+
+macTabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    macTabBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const tab = btn.dataset.tab;
+    Object.entries(blockTabMap).forEach(([blockId, allowedTabs]) => {
+      const el = document.getElementById(blockId);
+      if (el) {
+        if (allowedTabs.includes(tab)) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      }
+    });
+  });
+});
+
 
 function renderDisks(disks) {
   diskListEl.innerHTML = "";
