@@ -288,11 +288,12 @@ fn toggle_window(app: &tauri::AppHandle) {
     }
 }
 
-fn check_and_notify(app_handle: &tauri::AppHandle, state: &AppState) {
-    let dirs = state.get_watch_dirs();
-    let disks = get_disk_status();
-    let repos = scan_git_repos(&dirs);
-
+fn check_and_notify_with_data(
+    app_handle: &tauri::AppHandle,
+    state: &AppState,
+    disks: &[monitors::disk::DiskInfo],
+    repos: &[monitors::git::RepoStatus],
+) {
     let mut notified = state
         .notified_keys
         .lock()
@@ -300,7 +301,7 @@ fn check_and_notify(app_handle: &tauri::AppHandle, state: &AppState) {
     let mut active_keys = HashSet::new();
 
     // Check critical disks
-    for disk in &disks {
+    for disk in disks {
         if disk.status == "critical" {
             let key = format!("disk_critical_{}", disk.name);
             active_keys.insert(key.clone());
@@ -320,7 +321,7 @@ fn check_and_notify(app_handle: &tauri::AppHandle, state: &AppState) {
     }
 
     // Check git repo thresholds (>20 changed files or >5 unpushed commits)
-    for repo in &repos {
+    for repo in repos {
         if repo.changed_files > 20 {
             let key = format!("repo_changed_{}", repo.name);
             active_keys.insert(key.clone());
@@ -360,7 +361,7 @@ fn check_and_notify(app_handle: &tauri::AppHandle, state: &AppState) {
     notified.retain(|k| active_keys.contains(k));
 }
 
-fn update_tray_icon(
+fn update_tray_status(
     app_handle: &tauri::AppHandle,
     warning_icon: &Option<tauri::image::Image>,
     normal_icon: &Option<tauri::image::Image>,
@@ -378,12 +379,17 @@ fn update_tray_icon(
             if let Some(icon) = warning_icon {
                 let _ = tray.set_icon(Some(icon.clone()));
             }
+            let _ = tray.set_tooltip(Some("DevBar — ⚠️ System Alert"));
         } else {
             if let Some(icon) = normal_icon {
                 let _ = tray.set_icon(Some(icon.clone()));
             }
+            let tooltip_msg = format!("DevBar — 🟢 Monitoring {} Repos", repos.len());
+            let _ = tray.set_tooltip(Some(&tooltip_msg));
         }
     }
+
+    check_and_notify_with_data(app_handle, state, &disks, &repos);
 }
 
 /// Opens the given path in the user's preferred editor (default: VS Code).
@@ -805,15 +811,14 @@ fn main() {
                         let ni_ref      = &normal_icon;
                         let panic_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                             let state = handle_ref.state::<AppState>();
-                            update_tray_icon(handle_ref, wi_ref, ni_ref, &state);
-                            check_and_notify(handle_ref, &state);
+                            update_tray_status(handle_ref, wi_ref, ni_ref, &state);
                         }));
                         if let Err(err) = panic_res {
                             eprintln!("[devbar] background monitor panic caught safely: {:?}", err);
                         }
-                        // Sleep in 1-second increments so we can respond to
+                        // Sleep in 1-second increments for 60s cycle so we can respond to
                         // the shutdown flag within ~1 second.
-                        for _ in 0..10 {
+                        for _ in 0..60 {
                             if shutdown_bg.load(Ordering::Relaxed) {
                                 break;
                             }
